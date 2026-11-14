@@ -242,6 +242,7 @@ class DesktopApp:
         self.qr_label = tk.Label(self.pair_card, bg=CARD)
         self.pin_label = ttk.Label(self.pair_card, style="Pin.TLabel")
         self.code_label = ttk.Label(self.pair_card, style="Code.TLabel")
+        self.addr_label = ttk.Label(self.pair_card, style="Code.TLabel")
         self.pair_info = ttk.Label(self.pair_card, style="Muted.TLabel", wraplength=380, justify="center")
         self.pair_btn = ttk.Button(self.pair_card, text="Associa un nuovo telefono", style="Accent.TButton",
                                    command=self.new_pairing)
@@ -285,7 +286,8 @@ class DesktopApp:
         self._render_pairing(None)
 
     def _render_pairing(self, session: Any) -> None:
-        for w in (self.qr_label, self.pin_label, self.code_label, self.pair_info, self.pair_btn, self.cancel_btn):
+        for w in (self.qr_label, self.pin_label, self.addr_label, self.code_label, self.pair_info, self.pair_btn,
+                  self.cancel_btn):
             w.pack_forget()
         if session is None:
             self.session_expires = None
@@ -307,6 +309,10 @@ class DesktopApp:
         self.qr_label.pack(pady=(14, 6))
         self.pin_label.configure(text=f"{session.pin[:3]} {session.pin[3:]}")
         self.pin_label.pack()
+        from .pairinfo import base_url
+
+        self.addr_label.configure(text=f"Indirizzo del PC  {base_url(self.settings).split('://', 1)[-1]}")
+        self.addr_label.pack(pady=(2, 0))
         verify = current_verification_code(self.settings)
         if verify:
             self.code_label.configure(text=f"Codice di verifica  {verify}")
