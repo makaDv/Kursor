@@ -154,6 +154,7 @@ def _run_system_action(action: str, device_id: str) -> None:
 def create_app(svc: Services) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        svc.loop = asyncio.get_running_loop()
         task = asyncio.create_task(_watch_revocations(svc))
         try:
             yield
@@ -256,7 +257,7 @@ def create_app(svc: Services) -> FastAPI:
         if result is PairResult.NO_SESSION:
             audit("pair_failed", logging.WARNING, ip=ip, reason="no_session")
             return error(401, "pairing_closed",
-                         "Nessun pairing attivo. Sul PC esegui: python -m kursor pair")
+                         "Nessuna associazione attiva. Sul PC apri Kursor e premi «Associa un nuovo telefono».")
 
         lockout = svc.guard.fail(ip)
         if result is PairResult.EXHAUSTED:
@@ -338,6 +339,8 @@ def create_app(svc: Services) -> FastAPI:
             raise HTTPException(404, detail={"code": "unknown_action", "message": "Azione sconosciuta"})
         if body.confirm != action:
             raise HTTPException(400, detail={"code": "confirmation_required", "message": "Conferma mancante"})
+        if svc.paused:
+            return error(423, "paused", "Controllo in pausa sul PC")
         if not svc.system_limiter.allow(ctx.device_id):
             return error(429, "rate_limited", "Attendi qualche secondo", retry_after=5)
         audit("system_action", logging.WARNING, action=action, device=ctx.device_id, ip=ctx.ip)

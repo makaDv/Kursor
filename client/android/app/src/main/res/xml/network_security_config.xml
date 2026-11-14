@@ -1,16 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  No cleartext traffic, ever. Besides the system CAs, the app trusts user-installed
-  CAs so that the "Kursor Local CA" (name-constrained to private IPs, localhost
-  and *.local) installed from https://<PC>:8443/ca.crt is accepted on the LAN.
-  The Chromium WebView honours these trust anchors for fetch and WebSocket.
-  Through a Cloudflare tunnel the public certificate is used and nothing extra is needed.
+  No cleartext traffic, ever, and only the system CAs.
+  Connections to the user's PC do not go through the WebView: the KursorNative
+  plugin pins the PC's local CA (fingerprint from the pairing QR code), so no
+  certificate ever needs to be installed on the phone and user-installed CAs
+  are deliberately NOT trusted.
 -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
 </network-security-config>

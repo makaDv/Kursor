@@ -14,6 +14,8 @@
   "dependencies": {
     "@capacitor/android": "8.6.0",
     "@capacitor/core": "8.6.0",
+    "@capacitor/ios": "8.6.0",
+    "kursor-native": "file:native/kursor-native",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

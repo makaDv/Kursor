@@ -1,6 +1,7 @@
 """Kursor command line.
 
     python -m kursor run            start the daemon (opens a pairing window)
+    python -m kursor desktop        start the Windows desktop app (tray + pairing window)
     python -m kursor pair           open a new 5-minute pairing window (PIN + QR)
     python -m kursor devices        list paired devices
     python -m kursor revoke <id>    revoke one device (live sessions closed within ~2 s)
@@ -56,18 +57,18 @@ def _settings_from_args(args: argparse.Namespace) -> Settings:
 
 
 def _base_url(s: Settings) -> str:
-    if s.public_origin:
-        return s.public_origin
-    from .netutil import primary_lan_ip
+    from .pairinfo import base_url
 
-    ip = primary_lan_ip() or "127.0.0.1"
-    return f"{s.scheme}://{ip}:{s.port}"
+    return base_url(s)
 
 
 def _print_pairing(s: Settings, pin: str, code: str, expires_at: float) -> None:
     import qrcode
 
-    url = f"{_base_url(s)}/#pair={code}"
+    from .pairinfo import current_verification_code, pairing_url
+
+    url = pairing_url(s, code)
+    verify = current_verification_code(s)
     qr = qrcode.QRCode(border=1, error_correction=qrcode.constants.ERROR_CORRECT_M)
     qr.add_data(url)
     qr.make(fit=True)
@@ -83,7 +84,9 @@ def _print_pairing(s: Settings, pin: str, code: str, expires_at: float) -> None:
     print()
     print("  ┌─ PAIRING ─────────────────────────────────────────────")
     print(f"  │ PIN:     {pin[:3]} {pin[3:]}   (valido fino alle {expires}, monouso)")
-    print("  │ Oppure inquadra il QR con la fotocamera del telefono:")
+    if verify:
+        print(f"  │ Codice di verifica (app, inserimento manuale): {verify}")
+    print("  │ Oppure inquadra il QR con l'app Kursor o la fotocamera del telefono:")
     print("  └───────────────────────────────────────────────────────")
     print(buf.getvalue())
     if png_path:
@@ -94,12 +97,8 @@ def _print_pairing(s: Settings, pin: str, code: str, expires_at: float) -> None:
 def cmd_run(args: argparse.Namespace) -> int:
     import uvicorn
 
-    from .app import create_app
-    from .certs import ensure_certificates
-    from .control import enable_dpi_awareness
-    from .logging_setup import audit, setup_logging
-    from .netutil import hostname
-    from .services import Services
+    from .logging_setup import audit
+    from .runtime import prepare
 
     s = _settings_from_args(args)
     if not s.tls and s.host not in ("127.0.0.1", "localhost", "::1") and not args.insecure_lan:
@@ -107,31 +106,20 @@ def cmd_run(args: argparse.Namespace) -> int:
               "Usa --insecure-lan solo se sai esattamente cosa stai facendo.", file=sys.stderr)
         return 2
 
-    audit_path = setup_logging(s.log_dir, s.log_level)
-    enable_dpi_awareness()
-    svc = Services.build(s)
-
-    ssl_kwargs: dict = {}
-    ca_info = ""
-    if s.tls:
-        bundle = ensure_certificates(s.cert_dir, svc.lan_ips, hostname())
-        ssl_kwargs = {
-            "ssl_certfile": str(bundle.server_cert),
-            "ssl_keyfile": str(bundle.server_key),
-            "ssl_ciphers": "ECDHE+AESGCM:ECDHE+CHACHA20",
-        }
-        ca_info = bundle.ca_fingerprint
+    rt = prepare(s)
+    svc, bundle = rt.svc, rt.bundle
 
     base = _base_url(s)
     print(f"\n  Kursor v{__version__}")
     print(f"  URL:            {base}")
-    if s.tls:
+    if bundle:
         print(f"  Certificato CA: {base}/ca.crt")
-        print(f"  CA SHA-256:     {ca_info}")
+        print(f"  CA SHA-256:     {bundle.ca_fingerprint}")
+        print(f"  Verifica:       {bundle.verification_code}")
     if s.public_origin:
         print(f"  Origine tunnel: {s.public_origin}")
     print(f"  Dispositivi:    {len(svc.store.list())} associati")
-    print(f"  Log accessi:    {audit_path}")
+    print(f"  Log accessi:    {rt.audit_path}")
     if not (s.static_dir / "index.html").exists():
         print(f"  ATTENZIONE: client non compilato in {s.static_dir} (cd client && npm run build)")
 
@@ -143,20 +131,17 @@ def cmd_run(args: argparse.Namespace) -> int:
         svc.pairing.close()
 
     audit("server_start", version=__version__, host=s.host, port=s.port, tls=s.tls)
-    uvicorn.run(
-        create_app(svc),
-        host=s.host,
-        port=s.port,
-        log_level=s.log_level.lower(),
-        server_header=False,
-        proxy_headers=False,
-        access_log=False,
-        ws_max_size=1024 * 1024,
-        ws_ping_interval=20,
-        ws_ping_timeout=20,
-        **ssl_kwargs,
-    )
+    uvicorn.Server(rt.uvicorn_config()).run()
     return 0
+
+
+def cmd_desktop(args: argparse.Namespace) -> int:
+    from .desktop import main as desktop_main
+
+    argv = ["--minimized"] if args.minimized else []
+    if args.data_dir:
+        argv += ["--data-dir", args.data_dir]
+    return desktop_main(argv)
 
 
 def cmd_pair(args: argparse.Namespace) -> int:
@@ -266,6 +251,10 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--insecure-lan", action="store_true", help=argparse.SUPPRESS)
     r.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     r.set_defaults(func=cmd_run)
+
+    d = sub.add_parser("desktop", help="avvia l'app per Windows (icona nell'area di notifica)")
+    d.add_argument("--minimized", action="store_true", help="avvia ridotto a icona")
+    d.set_defaults(func=cmd_desktop)
 
     pa = sub.add_parser("pair", help="genera un nuovo PIN/QR di pairing")
     url_opts(pa)

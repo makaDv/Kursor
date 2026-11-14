@@ -1,7 +1,9 @@
 """Local certificate authority + LAN server certificate.
 
-A private CA (installed once on the phone) signs a short-lived server certificate
-that covers every private LAN IP of this PC. The CA carries X.509 *name
+A private CA signs a short-lived server certificate that covers every private
+LAN IP of this PC. The store apps *pin* this CA (its SHA-256 travels in the
+pairing QR code), so nothing has to be installed on the phone; the PWA instead
+needs the CA installed once. The CA carries X.509 *name
 constraints*: even if its key leaked, it could only sign certificates for
 private IP ranges, ``localhost`` and ``*.local``, never for public websites.
 The server certificate is re-issued automatically when the LAN IP changes,
@@ -10,6 +12,7 @@ without having to reinstall anything on the phone.
 
 from __future__ import annotations
 
+import base64
 import datetime as dt
 import ipaddress
 import logging
@@ -39,6 +42,14 @@ class CertBundle:
     server_key: Path
     ca_fingerprint: str
     issued_new_server_cert: bool
+    # Leaf + CA, served by uvicorn so clients can find the pinned CA in the chain.
+    server_fullchain: Path
+    # base64url(SHA-256(CA DER)), no padding: the pin carried by the QR code (fp=).
+    ca_pin: str
+
+    @property
+    def verification_code(self) -> str:
+        return verification_code(self.ca_pin)
 
 
 def _now() -> dt.datetime:
@@ -48,6 +59,16 @@ def _now() -> dt.datetime:
 def _fingerprint(cert: x509.Certificate) -> str:
     raw = cert.fingerprint(hashes.SHA256()).hex().upper()
     return ":".join(raw[i : i + 2] for i in range(0, len(raw), 2))
+
+
+def ca_pin(cert: x509.Certificate) -> str:
+    return base64.urlsafe_b64encode(cert.fingerprint(hashes.SHA256())).rstrip(b"=").decode()
+
+
+def verification_code(pin: str) -> str:
+    """First 48 bits of the CA hash, XXXX-XXXX-XXXX (same as client verificationCode())."""
+    raw = base64.urlsafe_b64decode(pin + "=" * (-len(pin) % 4))[:6].hex().upper()
+    return f"{raw[0:4]}-{raw[4:8]}-{raw[8:12]}"
 
 
 def _write_key(path: Path, key: ec.EllipticCurvePrivateKey) -> None:
@@ -203,4 +224,9 @@ def ensure_certificates(cert_dir: Path, ips: list[str], host: str, force: bool =
         _issue_server_cert(ca, ca_key, wanted_ips, host, srv_cert_path, srv_key_path)
         issued = True
 
-    return CertBundle(ca_cert_path, srv_cert_path, srv_key_path, _fingerprint(ca), issued)
+    fullchain_path = cert_dir / "server-fullchain.pem"
+    fullchain = srv_cert_path.read_bytes().rstrip(b"\n") + b"\n" + ca.public_bytes(serialization.Encoding.PEM)
+    if not fullchain_path.exists() or fullchain_path.read_bytes() != fullchain:
+        atomic_write_bytes(fullchain_path, fullchain)
+
+    return CertBundle(ca_cert_path, srv_cert_path, srv_key_path, _fingerprint(ca), issued, fullchain_path, ca_pin(ca))

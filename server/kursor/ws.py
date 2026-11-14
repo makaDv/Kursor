@@ -8,7 +8,7 @@ Protocol (both channels):
      client sends a fresh ``auth`` message, otherwise the socket is closed (4401).
 
 Close codes: 4400 bad request, 4401 unauthorized/expired, 4403 forbidden
-origin, 4408 auth timeout, 4409 device revoked, 4429 locked out.
+origin, 4408 auth timeout, 4409 device revoked, 4423 paused on the PC, 4429 locked out.
 """
 
 from __future__ import annotations
@@ -86,6 +86,9 @@ async def authenticate(ws: WebSocket, channel: str) -> WsSession | None:
     if svc.guard.retry_after(ip):
         await ws.close(code=4429)
         return None
+    if svc.paused:
+        await ws.close(code=4423, reason="paused")
+        return None
 
     await ws.accept()
     try:
@@ -127,6 +130,8 @@ async def _handle_reauth(ws: WebSocket, svc: Services, session: WsSession, msg: 
 
 
 async def _dispatch_input(svc: Services, msg: dict[str, Any]) -> None:
+    if svc.paused:
+        return
     inp = svc.input
     t = msg.get("t")
     if t == "move":

@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, pair } from '../lib/api'
-import { apiUrl, getServer, isNative, normalizeServer, setServer } from '../lib/platform'
+import { KursorNative } from '../lib/native'
+import {
+  apiUrl,
+  getServer,
+  isNative,
+  LAN_ONLY,
+  normalizeServer,
+  parsePairingLink,
+  setServer,
+  verificationCode,
+  type ServerConfig,
+} from '../lib/platform'
+import { PrivacyNote } from './Legal'
 
 function defaultDeviceName() {
   const ua = navigator.userAgent
@@ -22,26 +34,26 @@ function describe(err: unknown): string {
   return err.message
 }
 
+/** Pending manual pairing waiting for the user to compare the verification code. */
+interface Verify {
+  cfg: ServerConfig
+  secret: string
+}
+
 export default function PairScreen({ initialCode, onPaired }: { initialCode: string | null; onPaired: () => void }) {
   const [pin, setPin] = useState('')
   const [name, setName] = useState(defaultDeviceName)
-  const [server, setServerInput] = useState(() => getServer()?.replace(/^https:\/\//, '') ?? '')
+  const [server, setServerInput] = useState(() => getServer()?.origin.replace(/^https:\/\//, '') ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [verify, setVerify] = useState<Verify | null>(null)
   const autoTried = useRef(false)
 
-  const submit = async (secret: string, serverOverride?: string) => {
-    if (isNative) {
-      const origin = normalizeServer(serverOverride ?? server)
-      if (!origin) {
-        setError('Indirizzo del PC non valido (es. 192.168.1.10:8443)')
-        return
-      }
-      setServer(origin)
-    }
+  const doPair = async (secret: string, cfg?: ServerConfig) => {
     setBusy(true)
     setError(null)
     try {
+      if (cfg) await setServer(cfg)
       await pair(secret, name.trim() || defaultDeviceName())
       onPaired()
     } catch (err) {
@@ -51,46 +63,144 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
     }
   }
 
-  // QR flow: the high-entropy code arrives in the URL fragment, which browsers
+  /**
+   * Native: work out how to trust the PC before sending anything secret.
+   * - pin from the QR code: trusted directly (the QR is the out-of-band channel);
+   * - publicly trusted certificate (tunnel): system trust, no pin;
+   * - otherwise: show the CA fingerprint as a verification code to compare on the PC.
+   */
+  const nativePair = async (origin: string, secret: string, qrPin: string | null) => {
+    if (qrPin) return doPair(secret, { origin, pin: qrPin })
+    const saved = getServer()
+    setBusy(true)
+    setError(null)
+    try {
+      const probe = await KursorNative.probe({ url: origin })
+      if (probe.publiclyTrusted) {
+        setBusy(false)
+        return doPair(secret, { origin, pin: null })
+      }
+      // Same PC as before (unchanged certificate): no need to compare the code again.
+      if (probe.fingerprint && saved?.origin === origin && saved.pin === probe.fingerprint) {
+        setBusy(false)
+        return doPair(secret, saved)
+      }
+      if (!probe.fingerprint) {
+        setError('Il PC non presenta un certificato Kursor valido.')
+      } else {
+        setVerify({ cfg: { origin, pin: probe.fingerprint }, secret })
+      }
+    } catch {
+      setError('PC non raggiungibile. Controlla indirizzo e rete Wi-Fi.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const submitManual = (secret: string) => {
+    if (!isNative) return void doPair(secret)
+    const origin = normalizeServer(server)
+    if (!origin) {
+      setError(
+        LAN_ONLY
+          ? 'Indirizzo non valido. Su iPhone Kursor si collega solo a PC sulla stessa rete Wi-Fi (es. 192.168.1.10).'
+          : 'Indirizzo del PC non valido (es. 192.168.1.10:8443)',
+      )
+      return
+    }
+    void nativePair(origin, secret, null)
+  }
+
+  const handleLink = (text: string): boolean => {
+    const link = parsePairingLink(text)
+    if (!link) return false
+    setServerInput(link.origin.replace(/^https:\/\//, ''))
+    void nativePair(link.origin, link.code, link.pin)
+    return true
+  }
+
+  const scan = async () => {
+    setError(null)
+    try {
+      const { value } = await KursorNative.scanQr()
+      if (value && !handleLink(value)) setError('Questo QR non è un codice di associazione Kursor.')
+    } catch {
+      setError('Fotocamera non disponibile. Inserisci indirizzo e PIN a mano.')
+    }
+  }
+
+  // PWA QR flow: the high-entropy code arrives in the URL fragment, which browsers
   // never send to the server. Remove it from the address bar right away.
   useEffect(() => {
     if (!initialCode || autoTried.current) return
     autoTried.current = true
     history.replaceState(null, '', location.pathname)
-    void submit(initialCode)
+    void doPair(initialCode)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCode])
 
   const digits = pin.replace(/\D/g, '').slice(0, 6)
 
-  // App: pasting the QR link (https://IP:8443/#pair=CODE) fills everything in.
-  const onServerChange = (value: string) => {
-    const m = value.match(/^(https:\/\/[^/#\s]+)\/?#pair=([A-Za-z0-9_-]{6,64})/)
-    if (m) {
-      setServerInput(m[1].replace(/^https:\/\//, ''))
-      void submit(m[2], m[1])
-      return
-    }
-    setServerInput(value)
+  if (verify) {
+    return (
+      <div className="safe-top safe-bottom flex h-full flex-col items-center justify-center gap-6 overflow-y-auto px-6 text-center">
+        <h1 className="text-xl font-semibold">Verifica il PC</h1>
+        <p className="max-w-xs text-sm text-gray-400">
+          Controlla che nella finestra di Kursor sul PC compaia <b>esattamente</b> questo codice di verifica:
+        </p>
+        <p className="rounded-2xl bg-ink-800 px-5 py-4 font-mono text-2xl tracking-wider text-accent-2">
+          {verificationCode(verify.cfg.pin!)}
+        </p>
+        <p className="max-w-xs text-xs text-gray-500">
+          Se il codice è diverso, qualcuno sulla rete potrebbe intercettare la connessione: non proseguire.
+        </p>
+        <div className="flex w-full max-w-xs flex-col gap-3">
+          <button
+            className="rounded-2xl bg-accent py-4 font-semibold text-white disabled:opacity-40"
+            disabled={busy}
+            onClick={() => {
+              const v = verify
+              setVerify(null)
+              void doPair(v.secret, v.cfg)
+            }}
+          >
+            Il codice corrisponde
+          </button>
+          <button className="key py-3" onClick={() => setVerify(null)}>
+            Annulla
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="safe-top safe-bottom flex h-full flex-col items-center justify-center gap-8 overflow-y-auto px-6">
+    <div className="safe-top safe-bottom flex h-full flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-6">
       <div className="flex flex-col items-center gap-3">
         <img src="/icons/icon.svg" alt="" className="h-16 w-16" />
         <h1 className="text-2xl font-semibold">Associa questo dispositivo</h1>
         <p className="max-w-xs text-center text-sm text-gray-400">
           {isNative
-            ? 'Inserisci l’indirizzo e il PIN mostrati nel terminale del PC (oppure incolla il link del QR).'
-            : 'Inserisci il PIN a 6 cifre mostrato nel terminale del PC, oppure inquadra il QR code.'}
+            ? 'Apri Kursor sul PC e inquadra il QR code, oppure inserisci indirizzo e PIN.'
+            : 'Inserisci il PIN a 6 cifre mostrato sul PC, oppure inquadra il QR code.'}
         </p>
       </div>
+
+      {isNative && (
+        <button
+          onClick={() => void scan()}
+          disabled={busy}
+          className="w-full max-w-xs rounded-2xl bg-accent py-4 font-semibold text-white disabled:opacity-40"
+        >
+          Scansiona il QR code
+        </button>
+      )}
 
       <form
         className="flex w-full max-w-xs flex-col gap-4"
         onSubmit={(e) => {
           e.preventDefault()
-          if (digits.length === 6) void submit(digits)
+          if (digits.length === 6) submitManual(digits)
         }}
       >
         {isNative && (
@@ -102,7 +212,12 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
               autoCapitalize="off"
               autoCorrect="off"
               placeholder="192.168.1.10:8443"
-              onChange={(e) => onServerChange(e.target.value)}
+              onChange={(e) => {
+                // Only a paste (several characters at once) is treated as a pairing link,
+                // never a half-typed one.
+                const pasted = e.target.value.length - server.length > 1
+                if (!(pasted && handleLink(e.target.value))) setServerInput(e.target.value)
+              }}
               className="rounded-xl bg-ink-800 px-3 py-3 font-mono text-base text-gray-100 outline-none focus:ring-2 focus:ring-accent"
             />
           </label>
@@ -130,20 +245,23 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
         <button
           type="submit"
           disabled={busy || digits.length !== 6}
-          className="rounded-2xl bg-accent py-4 font-semibold text-white disabled:opacity-40"
+          className={`rounded-2xl py-4 font-semibold disabled:opacity-40 ${isNative ? 'key' : 'bg-accent text-white'}`}
         >
-          {busy ? 'Verifica…' : 'Associa'}
+          {busy ? 'Verifica…' : 'Associa con PIN'}
         </button>
         {error && <p className="rounded-xl bg-red-500/15 p-3 text-center text-sm text-red-300">{error}</p>}
       </form>
 
-      <p className="max-w-xs text-center text-xs text-gray-500">
-        Prima volta? Scarica e installa il{' '}
-        <a href={apiUrl('/ca.crt')} target="_blank" rel="noreferrer" className="text-accent-2 underline">
-          certificato del PC
-        </a>{' '}
-        per una connessione cifrata e fidata (istruzioni nel README).
-      </p>
+      {!isNative && (
+        <p className="max-w-xs text-center text-xs text-gray-500">
+          Prima volta? Scarica e installa il{' '}
+          <a href={apiUrl('/ca.crt')} target="_blank" rel="noreferrer" className="text-accent-2 underline">
+            certificato del PC
+          </a>{' '}
+          per una connessione cifrata e fidata (istruzioni nel README).
+        </p>
+      )}
+      <PrivacyNote />
     </div>
   )
 }

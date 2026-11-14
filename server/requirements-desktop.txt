@@ -1,0 +1,3 @@
+# Windows desktop app (tray icon) and packaging
+pystray>=0.19.5,<0.20
+pyinstaller>=6.16

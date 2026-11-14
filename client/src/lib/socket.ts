@@ -7,8 +7,9 @@
  */
 import { forgetSession, getAccessToken, refresh } from './api'
 import { wsUrl } from './platform'
+import { openSocket, type SocketLike } from './transport'
 
-export type SocketStatus = 'idle' | 'connecting' | 'open' | 'offline' | 'revoked'
+export type SocketStatus = 'idle' | 'connecting' | 'open' | 'offline' | 'revoked' | 'untrusted'
 
 export interface Monitor {
   index: number
@@ -28,7 +29,7 @@ interface Options {
 const MAX_BACKOFF = 10_000
 
 export class KursorSocket {
-  private ws: WebSocket | null = null
+  private ws: SocketLike | null = null
   private opts: Options
   private status: SocketStatus = 'idle'
   private stopped = false
@@ -65,7 +66,7 @@ export class KursorSocket {
   }
 
   send(msg: Record<string, unknown>): boolean {
-    if (this.status !== 'open' || !this.ws || this.ws.readyState !== WebSocket.OPEN) return false
+    if (this.status !== 'open' || !this.ws || !this.ws.isOpen) return false
     // Drop input instead of queueing when the link is congested: stale mouse
     // moves are worse than missing ones.
     if (this.ws.bufferedAmount > 256 * 1024) return false
@@ -118,20 +119,19 @@ export class KursorSocket {
     }
     if (this.stopped) return
 
-    const ws = new WebSocket(wsUrl(this.opts.path))
-    ws.binaryType = 'arraybuffer'
+    const ws = openSocket(wsUrl(this.opts.path))
     this.ws = ws
 
     ws.onopen = () => ws.send(JSON.stringify({ t: 'auth', token }))
 
-    ws.onmessage = (ev) => {
-      if (typeof ev.data !== 'string') {
-        this.opts.onBinary?.(ev.data as ArrayBuffer)
+    ws.onmessage = (data) => {
+      if (typeof data !== 'string') {
+        this.opts.onBinary?.(data)
         return
       }
       let msg: Record<string, unknown>
       try {
-        msg = JSON.parse(ev.data)
+        msg = JSON.parse(data)
       } catch {
         return
       }
@@ -147,17 +147,21 @@ export class KursorSocket {
       this.opts.onMessage?.(msg)
     }
 
-    ws.onclose = async (ev) => {
+    ws.onclose = async (code, reason) => {
       if (this.ws !== ws) return
       this.ws = null
       this.clearTimers()
       if (this.stopped) return
-      if (ev.code === 4409) {
+      if (reason === 'pin_mismatch') {
+        this.setStatus('untrusted')
+        return
+      }
+      if (code === 4409) {
         forgetSession()
         this.setStatus('revoked')
         return
       }
-      if (ev.code === 4401 || ev.code === 4408) {
+      if (code === 4401 || code === 4408) {
         try {
           const ok = await refresh()
           if (!ok) {

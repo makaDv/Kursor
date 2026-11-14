@@ -1,13 +1,6 @@
 package io.github.makadv.kursor;
 
-import android.os.Bundle;
-
 import com.getcapacitor.BridgeActivity;
 
-public class MainActivity extends BridgeActivity {
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(SecureStorePlugin.class);
-        super.onCreate(savedInstanceState);
-    }
-}
+// Plugins (including the local kursor-native bridge) are registered automatically by `cap sync`.
+public class MainActivity extends BridgeActivity {}

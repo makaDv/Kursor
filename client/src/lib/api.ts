@@ -5,10 +5,11 @@
  *   so an XSS bug cannot exfiltrate a long-lived credential from storage.
  * - The refresh token is an HttpOnly + Secure + SameSite=Strict cookie scoped to
  *   /api/auth: JavaScript can never read it. It is rotated on every refresh.
- * - Android app: cookies would be cross-site, so the server returns the refresh
- *   token in the body and it is kept in the Keystore-backed SecureStore plugin.
+ * - Store apps: cookies would be cross-site, so the server returns the refresh
+ *   token in the body and it is kept in the Android Keystore / iOS Keychain.
  */
 import { apiUrl, isNative, loadRefreshToken, saveRefreshToken } from './platform'
+import { httpRequest, TransportError } from './transport'
 
 export class ApiError extends Error {
   status: number
@@ -62,33 +63,36 @@ export function tokenExpiry() {
   return accessExp
 }
 
-async function parseError(res: Response): Promise<ApiError> {
+function toApiError(status: number, body: unknown): ApiError {
   let detail: Record<string, unknown> = {}
-  try {
-    const body = await res.json()
-    if (body && typeof body.detail === 'object' && !Array.isArray(body.detail)) detail = body.detail
-  } catch {
-    /* non-JSON error body */
-  }
-  const code = typeof detail.code === 'string' ? detail.code : `http_${res.status}`
-  const message = typeof detail.message === 'string' ? detail.message : `Errore ${res.status}`
-  return new ApiError(res.status, code, message, detail)
+  const d = (body as { detail?: unknown } | null)?.detail
+  if (d && typeof d === 'object' && !Array.isArray(d)) detail = d as Record<string, unknown>
+  const code = typeof detail.code === 'string' ? detail.code : `http_${status}`
+  const message = typeof detail.message === 'string' ? detail.message : `Errore ${status}`
+  return new ApiError(status, code, message, detail)
 }
 
-async function rawRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  let res: Response
+const TRANSPORT_MESSAGES: Record<string, string> = {
+  network: 'PC non raggiungibile',
+  tls: 'Connessione sicura non riuscita',
+  pin_mismatch:
+    'Il certificato del PC non corrisponde a quello associato. Potrebbe essere un tentativo di intercettazione, oppure il PC ha rigenerato i certificati: associa di nuovo.',
+}
+
+async function rawRequest<T>(path: string, init: { method?: string; body?: string; headers?: Record<string, string> } = {}): Promise<T> {
+  let res
   try {
-    res = await fetch(apiUrl(path), {
-      ...init,
-      credentials: isNative ? 'omit' : 'same-origin',
-      cache: 'no-store',
+    res = await httpRequest(apiUrl(path), {
+      method: init.method,
+      body: init.body,
       headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
     })
-  } catch {
-    throw new ApiError(0, 'network', 'PC non raggiungibile')
+  } catch (err) {
+    const code = err instanceof TransportError ? err.code : 'network'
+    throw new ApiError(0, code === 'pin_mismatch' ? 'pin_mismatch' : 'network', TRANSPORT_MESSAGES[code] ?? TRANSPORT_MESSAGES.network)
   }
-  if (!res.ok) throw await parseError(res)
-  return (await res.json()) as T
+  if (!res.ok) throw toApiError(res.status, res.json())
+  return res.json() as T
 }
 
 export async function pair(secret: string, deviceName: string): Promise<void> {
@@ -117,7 +121,7 @@ export function refresh(): Promise<boolean> {
       })
       .catch((err: unknown) => {
         if (err instanceof ApiError && err.status === 401) setAuth(null)
-        if (err instanceof ApiError && err.code === 'network') throw err
+        if (err instanceof ApiError && (err.code === 'network' || err.code === 'pin_mismatch')) throw err
         return false
       })
       .finally(() => {
@@ -134,7 +138,10 @@ export async function getAccessToken(): Promise<string | null> {
   return ok ? accessToken : null
 }
 
-export async function authedRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function authedRequest<T>(
+  path: string,
+  init: { method?: string; body?: string; headers?: Record<string, string> } = {},
+): Promise<T> {
   const call = async () => {
     const token = await getAccessToken()
     if (!token) throw new ApiError(401, 'unauthorized', 'Sessione scaduta')

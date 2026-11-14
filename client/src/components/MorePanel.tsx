@@ -3,6 +3,7 @@ import { api, ApiError, logout, type Device } from '../lib/api'
 import { usePrefs } from '../lib/settings'
 import ConfirmDialog from './ConfirmDialog'
 import { Icon } from './Icon'
+import { APP_VERSION, LegalLinks } from './Legal'
 
 function ago(ts: number) {
   const s = Math.max(0, Date.now() / 1000 - ts)
@@ -96,6 +97,11 @@ export default function MorePanel({ onLoggedOut }: { onLoggedOut: () => void }) 
       <button className="rounded-2xl bg-red-500/15 py-4 font-medium text-red-300" onClick={() => setConfirmLogout(true)}>
         Disconnetti questo dispositivo
       </button>
+
+      <section className="flex flex-col items-center gap-2 pt-2">
+        <LegalLinks />
+        <p className="text-[11px] text-gray-600">Kursor {APP_VERSION}</p>
+      </section>
 
       {toRevoke && (
         <ConfirmDialog

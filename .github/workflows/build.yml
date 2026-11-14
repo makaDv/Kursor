@@ -1,0 +1,85 @@
+# Builds every Kursor deliverable. Manual trigger only (saves Actions minutes:
+# macOS minutes count 10x on private repositories).
+#
+#   gh workflow run build.yml -f targets=all        # or: android | ios | windows
+#
+# Store signing is NOT done here yet: add the secrets listed in docs/store/PUBLISHING.md
+# when you are ready to upload release builds.
+name: build
+
+on:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: "android | ios | windows | all"
+        default: all
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    if: inputs.targets == 'all' || inputs.targets == 'android'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - name: Web build + sync
+        working-directory: client
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+      - name: Gradle (unsigned release AAB + debug APK)
+        working-directory: client/android
+        run: ./gradlew --no-daemon bundleRelease assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: |
+            client/android/app/build/outputs/bundle/release/*.aab
+            client/android/app/build/outputs/apk/debug/*.apk
+
+  ios:
+    if: inputs.targets == 'all' || inputs.targets == 'ios'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
+      - name: Web build + sync
+        working-directory: client
+        run: |
+          npm ci
+          npm run build
+          npx cap sync ios
+      - name: Xcode build (device, unsigned)
+        working-directory: client/ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build | tail -n 60
+          test "${PIPESTATUS[0]}" -eq 0
+
+  windows:
+    if: inputs.targets == 'all' || inputs.targets == 'windows'
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - name: Build exe + installer
+        shell: pwsh
+        run: |
+          python -m venv server\.venv
+          ./packaging/windows/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/Kursor-Setup-*.exe

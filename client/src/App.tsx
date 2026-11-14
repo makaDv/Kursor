@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ApiError, onAuthChange, refresh } from './lib/api'
-import { isNative } from './lib/platform'
+import { isNative, loadServer } from './lib/platform'
 import { KursorSocket, type SocketStatus } from './lib/socket'
 import PairScreen from './components/PairScreen'
 import Trackpad from './components/Trackpad'
@@ -20,7 +20,7 @@ const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: 'more', label: 'Altro', icon: 'menu' },
 ]
 
-type Boot = 'checking' | 'paired' | 'unpaired' | 'offline'
+type Boot = 'checking' | 'paired' | 'unpaired' | 'offline' | 'untrusted'
 
 export default function App() {
   const [boot, setBoot] = useState<Boot>('checking')
@@ -40,9 +40,15 @@ export default function App() {
     if (pairCode) {
       setBoot('unpaired')
     } else {
-      refresh()
-        .then((ok) => setBoot(ok ? 'paired' : 'unpaired'))
-        .catch((err) => setBoot(err instanceof ApiError && err.code === 'network' ? 'offline' : 'unpaired'))
+      ;(async () => {
+        if (isNative && !(await loadServer())) return setBoot('unpaired')
+        try {
+          setBoot((await refresh()) ? 'paired' : 'unpaired')
+        } catch (err) {
+          const code = err instanceof ApiError ? err.code : ''
+          setBoot(code === 'pin_mismatch' ? 'untrusted' : code === 'network' ? 'offline' : 'unpaired')
+        }
+      })()
     }
     return () => {
       off()
@@ -64,6 +70,7 @@ export default function App() {
 
   useEffect(() => {
     if (status === 'revoked') setBoot('unpaired')
+    if (status === 'untrusted') setBoot('untrusted')
   }, [status])
 
   if (boot === 'checking') {
@@ -82,6 +89,21 @@ export default function App() {
             Cambia PC / associa di nuovo
           </button>
         )}
+      </div>
+    )
+  }
+  if (boot === 'untrusted') {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
+        <Icon name="lock" className="h-12 w-12 text-red-400" />
+        <h1 className="text-lg font-semibold">Certificato del PC cambiato</h1>
+        <p className="max-w-xs text-sm text-gray-300">
+          Il PC ha presentato un certificato diverso da quello associato. La connessione è stata bloccata per proteggerti
+          da intercettazioni. Se hai reinstallato Kursor o rigenerato i certificati sul PC, associa di nuovo.
+        </p>
+        <button className="key px-6" onClick={() => setBoot('unpaired')}>
+          Associa di nuovo
+        </button>
       </div>
     )
   }
@@ -132,6 +154,7 @@ function StatusPill({ status }: { status: SocketStatus }) {
     open: ['bg-emerald-400', 'Connesso'],
     offline: ['bg-red-500 animate-pulse', 'Offline'],
     revoked: ['bg-red-500', 'Revocato'],
+    untrusted: ['bg-red-500', 'Non fidato'],
   }
   const [dot, label] = map[status]
   return (

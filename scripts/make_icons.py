@@ -106,6 +106,45 @@ def android() -> None:
     print(f"Android icons/splash written to {ANDROID_RES}")
 
 
+# ---- iOS (Capacitor project in client/ios) -----------------------------------
+IOS_ASSETS = Path(__file__).resolve().parents[1] / "client" / "ios" / "App" / "App" / "Assets.xcassets"
+
+
+def ios() -> None:
+    if not IOS_ASSETS.exists():
+        return
+    # App Store icon: 1024x1024, opaque, square (iOS applies the rounded mask itself).
+    render(1024, rounded=False).convert("RGB").save(IOS_ASSETS / "AppIcon.appiconset" / "AppIcon-512@2x.png")
+    logo = render(512)
+    for splash in (IOS_ASSETS / "Splash.imageset").glob("*.png"):
+        with Image.open(splash) as old:
+            w, h = old.size
+        img = Image.new("RGB", (w, h), BG)
+        side = int(min(w, h) * 0.2)
+        icon = logo.resize((side, side), Image.Resampling.LANCZOS)
+        img.paste(icon, ((w - side) // 2, (h - side) // 2), icon)
+        img.save(splash)
+    print(f"iOS icon/splash written to {IOS_ASSETS}")
+
+
+# ---- Windows desktop app (server/kursor/assets) -------------------------------
+DESKTOP_ASSETS = Path(__file__).resolve().parents[1] / "server" / "kursor" / "assets"
+
+
+def desktop() -> None:
+    DESKTOP_ASSETS.mkdir(parents=True, exist_ok=True)
+    big = render(256)
+    big.save(DESKTOP_ASSETS / "kursor.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+    tray = render(64)
+    tray.save(DESKTOP_ASSETS / "tray.png")
+    active = tray.copy()
+    ImageDraw.Draw(active).ellipse((38, 38, 63, 63), fill=(16, 185, 129, 255), outline=(11, 15, 23, 255), width=3)
+    active.save(DESKTOP_ASSETS / "tray-active.png")
+    print(f"Desktop icons written to {DESKTOP_ASSETS}")
+
+
 if __name__ == "__main__":
     main()
     android()
+    ios()
+    desktop()

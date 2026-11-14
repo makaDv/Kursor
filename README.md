@@ -1,11 +1,19 @@
 # Kursor
 
 Controlla il tuo PC dallo smartphone: trackpad, tastiera, scorciatoie, streaming dello schermo e azioni di sistema.
-Il PC deve essere acceso e raggiungibile in rete. L'app per il telefono è una **PWA**: si apre dal browser e si installa
-sulla schermata Home, senza passare dagli store, su iOS e Android.
 
-- **Server (PC):** Python 3.11+ · FastAPI · WebSocket · `mss` (cattura schermo) · `pynput` (mouse/tastiera)
-- **Client (telefono):** React 18 · TypeScript · Tailwind CSS 4 · Vite. Il server stesso la serve, quindi c'è una sola origine HTTPS.
+| Parte | Cosa | Dove |
+|---|---|---|
+| **PC (Windows)** | Programma con icona nell'area di notifica, finestra di associazione (QR/PIN), indicatore "telefono connesso", pausa, revoca. Installer `.exe`. | `server/` · `packaging/windows/` |
+| **App Android** | Google Play · Capacitor 8.6 + plugin nativo (pinning, Keystore, scanner QR) | `client/android/` |
+| **App iOS** | App Store · stesso codice + plugin Swift (pinning, Keychain, scanner QR) | `client/ios/` |
+| **PWA** | Dal browser, senza store (richiede di installare la CA sul telefono) | `client/` |
+
+- **Server (PC):** Python 3.11+ · FastAPI · WebSocket · `mss` (cattura schermo) · `pynput` (mouse/tastiera) · tkinter + `pystray` (app desktop)
+- **Client:** React 18 · TypeScript · Tailwind CSS 4 · Vite · Capacitor 8.6
+
+**Pubblicazione sugli store** (Data safety, App Privacy, note per la revisione, firma): vedi [`docs/store/PUBLISHING.md`](docs/store/PUBLISHING.md).
+Privacy, termini e licenze: [`docs/legal/`](docs/legal/).
 
 ---
 
@@ -16,7 +24,10 @@ Kursor/
 ├── server/
 │   ├── requirements.txt
 │   └── kursor/
-│       ├── __main__.py        # CLI: run, pair, devices, revoke, revoke-all, cert
+│       ├── __main__.py        # CLI: run, desktop, pair, devices, revoke, revoke-all, cert
+│       ├── desktop.py         # app Windows: tray, finestra QR/PIN, indicatore connessione, pausa, consenso
+│       ├── runtime.py         # bootstrap del server condiviso fra CLI e app desktop
+│       ├── pairinfo.py        # link di pairing (codice + impronta della CA per il pinning)
 │       ├── app.py             # FastAPI: auth, dispositivi, azioni di sistema, hosting PWA, header di sicurezza
 │       ├── ws.py              # WebSocket /ws/control (input) e /ws/screen (streaming adattivo)
 │       ├── services.py        # wiring dei componenti + registro delle connessioni live
@@ -33,15 +44,22 @@ Kursor/
 │           ├── screen.py      # cattura e codifica JPEG/WebP
 │           └── system.py      # blocco, sospensione, spegnimento
 ├── client/
-│   ├── android/               # progetto Android Studio (Capacitor) + SecureStorePlugin
-│   ├── capacitor.config.ts
+│   ├── android/               # progetto Android Studio (Capacitor)
+│   ├── ios/                   # progetto Xcode (Capacitor, Swift Package Manager)
+│   ├── native/kursor-native/  # plugin nativo: HTTPS/WSS con pinning, Keystore/Keychain, scanner QR
 │   ├── public/                # manifest, service worker, icone
 │   └── src/
 │       ├── lib/api.ts         # client HTTP con gestione dei token
+│       ├── lib/transport.ts   # fetch/WebSocket (PWA) oppure plugin nativo (app)
 │       ├── lib/socket.ts      # WebSocket autenticato con riconnessione automatica
-│       └── components/        # Trackpad, Tastiera, Schermo, Sistema, Dispositivi
-├── docs/                      # esempi di configurazione per Cloudflare Tunnel e WireGuard
-└── scripts/make_icons.py
+│       └── components/        # Pairing, Trackpad, Tastiera, Schermo, Sistema, Dispositivi, Legal
+├── packaging/windows/         # PyInstaller (.spec) + Inno Setup (.iss) + build.ps1
+├── .github/workflows/         # build.yml: Android / iOS / Windows (avvio manuale)
+├── docs/
+│   ├── legal/                 # PRIVACY, TERMS, THIRD_PARTY_NOTICES
+│   ├── store/PUBLISHING.md    # checklist e risposte per Google Play / App Store / Microsoft Store
+│   └── *.example.*            # Cloudflare Tunnel e WireGuard
+└── scripts/make_icons.py      # icone PWA, Android, iOS, Windows
 ```
 
 ## Architettura di sicurezza
@@ -55,6 +73,8 @@ Kursor/
 | DNS rebinding | Allow-list dell'header **Host** (IP LAN, `localhost`, hostname, origine del tunnel). |
 | Token nei log | Sul WebSocket il token viaggia nel **primo messaggio**, mai nell'URL. Il codice QR sta nel fragment `#`, che il browser non invia al server. |
 | Intercettazione | **TLS ovunque** (HTTPS/WSS) con cipher ECDHE + AEAD. In LAN si usa una **CA locale con X.509 name constraints**: anche se la sua chiave venisse rubata, potrebbe firmare solo IP privati, `localhost` e `*.local`, mai siti pubblici. |
+| MITM sull'app | **Certificate pinning**: il QR contiene l'impronta SHA-256 della CA del PC (`#pair=…&fp=…`) e l'app accetta *solo* quella come radice. Le CA di sistema e quelle installate dall'utente vengono ignorate. Senza QR, l'app mostra un **codice di verifica** (`XXXX-XXXX-XXXX`, 48 bit) da confrontare con quello sul PC. Se il certificato cambia, l'app blocca la connessione prima di inviare qualsiasi token. Sul telefono non si installa nulla. |
+| Uso occulto | **Nessuna modalità nascosta.** L'icona nel tray è sempre visibile, diventa verde e mostra una notifica quando un telefono si connette. La finestra indica chi sta controllando il PC. **Pausa** (codice 4423) e revoca sono a un clic. Al primo avvio c'è una schermata di consenso, e l'avvio automatico è facoltativo. |
 | Esposizione su internet | Nessun port forwarding. Si passa da **Cloudflare Tunnel** (+ Cloudflare Access) oppure da **WireGuard/Tailscale**. In modalità tunnel il server ascolta solo su `127.0.0.1`. |
 | Revoca | `python -m kursor revoke <id>` oppure il pulsante nell'app. Le sessioni live si chiudono entro circa 2 secondi (codice 4409). Anche gli access token ancora validi smettono subito di funzionare. |
 | Azioni distruttive | Il pulsante va **tenuto premuto** per confermare. Il server richiede `confirm` uguale al nome dell'azione e accetta al massimo 1 azione ogni 5 s per dispositivo. |
@@ -65,6 +85,16 @@ Kursor/
 I dati sensibili (chiave di firma, dispositivi, CA, log) stanno in `~/.kursor` (oppure in `$KURSOR_DATA_DIR`), fuori dal repository.
 
 ---
+
+## 0. Programma per PC (utenti finali)
+
+Scarica `Kursor-Setup-x.y.z.exe` e installalo: non servono diritti di amministratore. Al primo avvio:
+1. accetta i termini (schermata di benvenuto);
+2. Windows chiede l'accesso alla rete: **consenti solo le reti private**;
+3. premi **Associa un nuovo telefono** e inquadra il QR con l'app Kursor.
+
+Chiudendo la finestra Kursor resta nell'area di notifica (icona vicino all'orologio). Dal menu dell'icona: Apri, Associa, **Pausa controllo**, Esci.
+Da sorgente: `cd server; .venv\Scripts\python -m kursor desktop`. Build dell'installer: `packaging\windows\build.ps1` (vedi `docs/store/PUBLISHING.md` per la firma).
 
 ## 1. Installazione
 
@@ -182,40 +212,32 @@ cloudflared tunnel run kursor
 
 `--no-tls` viene rifiutato se `--host` non è loopback, così non si espone per errore HTTP in chiaro sulla LAN.
 
-## 8. App Android (Android Studio / Google Play)
+## 8. App Android e iOS (store)
 
-Il client esiste anche come **app Android nativa**, generata con [Capacitor](https://capacitorjs.com) 8.6. Usa lo stesso codice React della PWA e il progetto Android Studio si trova in `client/android/`.
+Le app native nascono dallo stesso codice React con [Capacitor](https://capacitorjs.com) 8.6. **Tutto il traffico verso il PC passa dal plugin nativo `client/native/kursor-native`**, non dalla WebView: così il certificato del PC viene verificato con il pinning e sul telefono non serve installare nulla.
 
-Cosa cambia rispetto alla PWA:
+| | PWA | App Android | App iOS |
+|---|---|---|---|
+| Rete | fetch/WebSocket del browser | OkHttp, pinning della CA del PC | URLSession, pinning della CA del PC |
+| Fiducia TLS | CA installata sul telefono | impronta dal QR o codice di verifica; CA utente **non** accettate | uguale ad Android |
+| Refresh token | cookie `HttpOnly` | Android Keystore (AES-256-GCM), backup disattivato | Keychain `ThisDeviceOnly` |
+| Scanner QR | fotocamera di sistema | ZXing (offline, niente Google ML Kit) | AVFoundation |
+| Reti | LAN o tunnel | LAN o tunnel | **solo LAN** (App Store Guideline 4.2.7) |
 
-| | PWA | App Android |
-|---|---|---|
-| Origine | quella del PC (`https://IP:8443`) | `https://localhost` (asset inclusi nell'APK), consentita dal server tramite CORS senza credenziali |
-| Refresh token | cookie `HttpOnly` | **Android Keystore**: AES-256-GCM con chiave non esportabile (`SecureStorePlugin.java`). Backup disattivato. |
-| Indirizzo del PC | implicito | si inserisce al primo avvio, oppure si incolla il link del QR |
-| TLS | CA installata sul telefono | stessa CA, accettata tramite `network_security_config.xml`. Il traffico in chiaro è vietato. |
-
-Per rifiutare l'app e accettare solo la PWA, avvia il server con `--no-app`.
+Per rifiutare le app e accettare solo la PWA, avvia il server con `--no-app`.
 
 ### Sviluppo
 ```powershell
 cd client
-npm run android:sync     # build web e copia in android/
-npm run android:open     # apre il progetto in Android Studio
+npm run build; npx cap sync      # copia il web e collega il plugin nativo in android/ e ios/
+npx cap open android             # Android Studio, poi ▶
 ```
-In Android Studio premi ▶ con un telefono collegato (debug USB attivo) o con un emulatore.
-Gradle 9.2.1 è già configurato, quindi la build funziona con il JDK 25 incluso in Android Studio.
-APK di debug da riga di comando: `cd client\android; .\gradlew assembleDebug`. Il file si trova in `app\build\outputs\apk\debug\`.
+- APK di debug da riga di comando: `cd client\android; .\gradlew assembleDebug`.
+- iOS richiede macOS + Xcode (`npx cap open ios`) oppure la CI: `gh workflow run build.yml -f targets=ios` compila il progetto senza firma.
+- Icone e splash (PWA, Android, iOS, Windows): `server\.venv\Scripts\python scripts\make_icons.py`.
 
-### Pubblicazione su Google Play
-1. **Scegli l'`appId` definitivo prima del primo upload**: dopo non si può più cambiare. Ora è `io.github.makadv.kursor`, in `client/capacitor.config.ts` e `client/android/app/build.gradle` (`applicationId`, `namespace`). Va bene se pubblichi a nome tuo, altrimenti usa un dominio che possiedi.
-2. Incrementa `versionCode` e `versionName` in `client/android/app/build.gradle` a ogni release.
-3. Android Studio → **Build → Generate Signed App Bundle** → *Android App Bundle* → crea una nuova keystore (`.jks`).
-   **Conserva la keystore e la password fuori dal repository** (`*.jks` è già in `.gitignore`) e fanne un backup: senza, non potrai pubblicare aggiornamenti. Attiva *Play App Signing* nella Console.
-4. In Google Play Console crea l'app e carica il file `.aab`. Compila *Sicurezza dei dati*: nessun dato raccolto, tutto resta tra il telefono e il PC. Aggiungi l'informativa privacy e la classificazione dei contenuti.
-5. Nella scheda dello store spiega che l'app richiede il server Kursor sul PC, così chi la recensisce capisce come funziona.
-
-Rigenerare icone e splash Android dopo modifiche al logo: `server\.venv\Scripts\python scripts\make_icons.py`, poi `npm run android:sync`.
+### Pubblicazione
+Tutti i passaggi sono in **[`docs/store/PUBLISHING.md`](docs/store/PUBLISHING.md)**: appId definitivo, firma, Data safety ("nessun dato raccolto"), App Privacy ("Data Not Collected"), note per i revisori, scheda dello store, firma del programma Windows.
 
 ## 9. Sviluppo web
 
@@ -234,9 +256,11 @@ Rigenerare le icone: `server\.venv\Scripts\python scripts\make_icons.py`
 1. Il client si connette a `/ws/control` o a `/ws/screen` e invia `{"t":"auth","token":"<JWT>"}` entro 5 s. Il server risponde con `{"t":"ready","exp":…,"monitors":[…]}`.
 2. **Comandi di controllo:** `move{dx,dy}` · `abs{x,y,m}` · `click{b,n}` · `down{b}` · `up{b}` · `scroll{dx,dy}` · `text{s}` · `keys{k:[…]}` · `ping`.
 3. **Comandi dello schermo:** `start{params}` · `config{params}` · `stop` · `ack{seq}`. Ogni frame binario è un header di 20 byte (`<IffHHB3x`: seq, cursore x/y normalizzati, larghezza, altezza, formato) seguito dall'immagine.
-4. **Codici di chiusura:** `4401` token scaduto/non valido · `4403` origine vietata · `4408` timeout auth · `4409` dispositivo revocato · `4429` bloccato.
+4. **Codici di chiusura:** `4401` token scaduto/non valido · `4403` origine vietata · `4408` timeout auth · `4409` dispositivo revocato · `4423` controllo in pausa sul PC · `4429` bloccato.
 
 ## Limiti noti
+- Windows 11 con Smart App Control blocca `Kursor.exe` se non è firmato: per distribuirlo serve la firma del codice oppure il Microsoft Store (vedi `docs/store/PUBLISHING.md`).
+- Il programma per PC esiste solo per Windows.
 - Il blocco anti brute force sta in memoria: si azzera al riavvio del server. Il PIN però scade e viene distrutto dopo 5 errori, a prescindere.
 - Con l'ibernazione attiva, Windows può ibernare invece di sospendere.
 - La schermata di blocco/UAC di Windows (desktop sicuro) non è controllabile da un processo utente: è una scelta di sicurezza del sistema operativo.

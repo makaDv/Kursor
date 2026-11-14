@@ -6,6 +6,7 @@ import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Any
 
 from fastapi import WebSocket
 
@@ -68,6 +69,10 @@ class Services:
     input: InputController
     registry: ConnectionRegistry = field(default_factory=ConnectionRegistry)
     lan_ips: list[str] = field(default_factory=list)
+    # Set from the desktop app: refuse remote control without unpairing anyone.
+    paused: bool = False
+    # Event loop running the app (lets the desktop UI thread close sockets).
+    loop: Any = None
     _monitors: list[dict[str, int]] = field(default_factory=list)
     _monitors_at: float = 0.0
 
