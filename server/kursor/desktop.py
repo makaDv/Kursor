@@ -434,14 +434,21 @@ class DesktopApp:
         for dev_id in connected - self.connected:
             self._notify(f"{names.get(dev_id, 'Un dispositivo')} sta controllando questo PC")
         self.connected = connected
+        # Transparency: whoever sits at the PC must know when the screen is being watched.
+        viewers = {d for d, n in list(self.svc.screen_viewers.items()) if n > 0}
+        for dev_id in viewers - self.viewers:
+            self._notify(f"{names.get(dev_id, 'Un dispositivo')} sta guardando il tuo schermo")
+        self.viewers = viewers
 
         if self.svc.paused:
             self._set_status(AMBER, "Controllo in pausa",
                              "Nessun telefono può controllare il PC finché non riprendi.", "Riprendi", "warn")
         elif connected:
             who = ", ".join(sorted(names.get(i, "?") for i in connected))
-            self._set_status(GREEN, f"Controllato ora da {who}",
-                             "Puoi mettere in pausa o revocare l'accesso in qualsiasi momento.", "Pausa", "secondary")
+            watching = ", ".join(sorted(names.get(i, "?") for i in viewers))
+            detail = (f"Sta guardando lo schermo: {watching}" if watching
+                      else "Puoi mettere in pausa o revocare l'accesso in qualsiasi momento.")
+            self._set_status(GREEN, f"Controllato ora da {who}", detail, "Pausa", "secondary")
         else:
             self._set_status(MUTED, "Nessun telefono connesso",
                              "I telefoni associati possono collegarsi quando vogliono." if devices
