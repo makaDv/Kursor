@@ -8,4 +8,4 @@ mss>=9,<11
 pynput>=1.7.7,<2
 Pillow>=11
 qrcode>=8,<9
-zeroconf>=0.140,<1
+zeroconf>=0.154.0,<1
