@@ -182,9 +182,29 @@ export interface Device {
   current: boolean
 }
 
+export interface PcWindow {
+  id: number
+  title: string
+  app: string
+  exe: string
+  pid: number
+  minimized: boolean
+  maximized: boolean
+  focused: boolean
+  protected: boolean
+}
+
+export type WindowAction = 'focus' | 'minimize' | 'maximize' | 'restore' | 'close' | 'kill'
+
 export const api = {
   devices: () => authedRequest<{ current: string; devices: Device[] }>('/api/devices'),
   revokeDevice: (id: string) => authedRequest<{ ok: boolean }>(`/api/devices/${id}`, { method: 'DELETE' }),
+  windows: () => authedRequest<{ windows: PcWindow[] }>('/api/windows'),
+  windowAction: (id: number, action: WindowAction) =>
+    authedRequest<{ ok: boolean }>(`/api/windows/${id}/${action}`, {
+      method: 'POST',
+      body: JSON.stringify(action === 'close' || action === 'kill' ? { confirm: action } : {}),
+    }),
   system: (action: 'lock' | 'sleep' | 'shutdown') =>
     authedRequest<{ ok: boolean }>(`/api/system/${action}`, {
       method: 'POST',

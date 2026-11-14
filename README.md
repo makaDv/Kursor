@@ -251,6 +251,15 @@ Dal telefono apri `http://<IP-PC>:5173`. Solo per sviluppo: niente TLS verso il 
 
 Rigenerare le icone: `server\.venv\Scripts\python scripts\make_icons.py`
 
+## App aperte sul PC (scheda "App")
+
+`GET /api/windows` elenca le finestre visibili nella barra delle applicazioni (programma, titolo, stato).
+`POST /api/windows/{id}/{azione}` con azione `focus` · `minimize` · `maximize` · `restore` · `close` · `kill`.
+- `close` equivale a premere la X: il programma può chiedere di salvare. `kill` è la chiusura forzata. Entrambe richiedono `{"confirm":"<azione>"}`, e nell'app vanno confermate tenendo premuto.
+- Ogni azione verifica di nuovo che l'handle sia una finestra dell'elenco, quindi non si possono colpire finestre nascoste o di sistema. I processi di sistema (`explorer.exe`, `dwm.exe`, `csrss.exe`, …) non possono essere terminati.
+- I programmi avviati come amministratore non sono controllabili da PadLink, che gira senza privilegi: è una protezione di Windows (UIPI).
+- Il registro degli accessi annota azione e nome del programma, mai il titolo della finestra.
+
 ## Protocollo WebSocket (riferimento)
 
 1. Il client si connette a `/ws/control` o a `/ws/screen` e invia `{"t":"auth","token":"<JWT>"}` entro 5 s. Il server risponde con `{"t":"ready","exp":…,"monitors":[…]}`.

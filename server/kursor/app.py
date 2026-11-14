@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from . import __version__
-from .control import system
+from .control import system, windows
 from .logging_setup import audit
 from .netutil import resolve_client_ip
 from .security.pairing import PairResult
@@ -125,6 +125,11 @@ class PairRequest(BaseModel):
 class SystemRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     confirm: str = Field(max_length=16)
+
+
+class WindowActionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    confirm: str | None = Field(default=None, max_length=16)
 
 
 # ---- background watcher -----------------------------------------------------------
@@ -332,6 +337,38 @@ def create_app(svc: Services) -> FastAPI:
     @app.get("/api/screen/monitors")
     async def monitors(ctx: AuthContext = Depends(require_device)) -> dict[str, Any]:
         return {"monitors": svc.monitors()}
+
+    # ---- open applications (windows) -------------------------------------------------
+    @app.get("/api/windows")
+    async def list_open_windows(ctx: AuthContext = Depends(require_device)) -> Any:
+        if svc.paused:
+            return error(423, "paused", "Controllo in pausa sul PC")
+        if not svc.api_limiter.allow(ctx.device_id):
+            return error(429, "rate_limited", "Troppe richieste", retry_after=2)
+        return {"windows": await asyncio.to_thread(windows.list_windows)}
+
+    @app.post("/api/windows/{window_id}/{action}")
+    async def act_on_window(window_id: int, action: str, body: WindowActionRequest,
+                            ctx: AuthContext = Depends(require_device)) -> Any:
+        if action not in windows.ACTIONS:
+            raise HTTPException(404, detail={"code": "unknown_action", "message": "Azione sconosciuta"})
+        if svc.paused:
+            return error(423, "paused", "Controllo in pausa sul PC")
+        destructive = action in ("close", "kill")
+        if destructive and body.confirm != action:
+            raise HTTPException(400, detail={"code": "confirmation_required", "message": "Conferma mancante"})
+        limiter = svc.system_limiter if action == "kill" else svc.api_limiter
+        if not limiter.allow(ctx.device_id):
+            return error(429, "rate_limited", "Attendi qualche secondo", retry_after=3)
+        try:
+            info = await asyncio.to_thread(windows.window_action, window_id, action)
+        except windows.WindowError as exc:
+            status = {"not_found": 404, "protected": 403, "access_denied": 403, "unsupported": 501}.get(exc.code, 400)
+            return error(status, exc.code, exc.message)
+        # Audit the application, never the window title (it may contain private data).
+        audit("window_action", logging.WARNING if destructive else logging.INFO, action=action, app=info["exe"],
+              device=ctx.device_id, ip=ctx.ip)
+        return {"ok": True}
 
     @app.post("/api/system/{action}")
     async def system_action(action: str, body: SystemRequest, ctx: AuthContext = Depends(require_device)) -> Any:

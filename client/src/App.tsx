@@ -8,15 +8,17 @@ import KeyboardPanel from './components/KeyboardPanel'
 import ScreenPanel from './components/ScreenPanel'
 import SystemPanel from './components/SystemPanel'
 import MorePanel from './components/MorePanel'
+import AppsPanel from './components/AppsPanel'
 import { Icon, type IconName } from './components/Icon'
 import { TermsGate, termsAccepted } from './components/Legal'
 
-type Tab = 'trackpad' | 'keyboard' | 'screen' | 'system' | 'more'
+type Tab = 'trackpad' | 'keyboard' | 'screen' | 'apps' | 'system' | 'more'
 
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: 'trackpad', label: 'Trackpad', icon: 'pointer' },
   { id: 'keyboard', label: 'Tastiera', icon: 'keyboard' },
   { id: 'screen', label: 'Schermo', icon: 'monitor' },
+  { id: 'apps', label: 'App', icon: 'apps' },
   { id: 'system', label: 'Sistema', icon: 'power' },
   { id: 'more', label: 'Altro', icon: 'menu' },
 ]
@@ -128,11 +130,12 @@ export default function App() {
         {tab === 'trackpad' && <Trackpad socket={control} full />}
         {tab === 'keyboard' && <KeyboardPanel socket={control} />}
         {tab === 'screen' && <ScreenPanel control={control} />}
+        {tab === 'apps' && <AppsPanel onShowScreen={() => setTab('screen')} />}
         {tab === 'system' && <SystemPanel />}
         {tab === 'more' && <MorePanel onLoggedOut={() => setBoot('unpaired')} />}
       </main>
 
-      <nav className="safe-bottom grid grid-cols-5 border-t border-ink-800 bg-ink-950">
+      <nav className="safe-bottom grid grid-cols-6 border-t border-ink-800 bg-ink-950">
         {TABS.map((t) => (
           <button
             key={t.id}

@@ -12,6 +12,8 @@ const PATHS = {
   expand: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   send: 'M4 12l16-8-6 16-2-7z',
+  apps: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
+  refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
 } as const
 
 export type IconName = keyof typeof PATHS

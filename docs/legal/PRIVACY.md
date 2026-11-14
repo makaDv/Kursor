@@ -29,8 +29,8 @@ Se scegli di usare un tunnel (per esempio Cloudflare Tunnel o WireGuard) per rag
 |---|---|---|---|
 | Telefono | Indirizzo del PC, impronta del suo certificato, token di sessione (cifrato nel Keystore Android o nel Keychain iOS), preferenze | Riconnettersi al PC in modo sicuro | Finché non disconnetti o disinstalli l'app |
 | PC | Nome del dispositivo associato, data di associazione, ultimo accesso e ultimo IP locale, hash del token di sessione | Gestire e revocare i dispositivi | Finché non revochi il dispositivo |
-| PC | Registro degli accessi (associazioni, tentativi falliti, revoche, azioni di sistema) | Sicurezza: rilevare abusi | File a rotazione, al massimo circa 12 MB |
-| In transito | Movimenti del mouse, tasti, testo digitato, immagini dello schermo | Il controllo remoto vero e proprio | Non vengono salvati: esistono solo in tempo reale |
+| PC | Registro degli accessi (associazioni, tentativi falliti, revoche, azioni di sistema, chiusura di app: solo il nome del programma, mai il titolo della finestra) | Sicurezza: rilevare abusi | File a rotazione, al massimo circa 12 MB |
+| In transito | Movimenti del mouse, tasti, testo digitato, immagini dello schermo, elenco delle app e delle finestre aperte sul PC (nome del programma e titolo della finestra) | Il controllo remoto vero e proprio | Non vengono salvati: esistono solo in tempo reale |
 
 Lo sviluppatore non riceve e non possiede copie di nessuno di questi dati.
 
@@ -77,7 +77,7 @@ _Last updated: 14 November 2026_
 **Data stored on your devices only.**
 - *Phone:* the PC address, its certificate fingerprint, a session token (encrypted in the Android Keystore or iOS Keychain) and your preferences.
 - *PC:* the paired device name, pairing date, last access time and local IP, a hash of the session token, and a rotating security access log (about 12 MB at most).
-- *Never stored:* mouse movements, keystrokes, typed text and screen images. They exist only in real time between your devices.
+- *Never stored:* mouse movements, keystrokes, typed text, screen images and the list of open apps/windows (program name and window title). They exist only in real time between your devices.
 
 **Permissions.**
 - *Camera:* used only to read the pairing QR code, on the device. No images are stored or sent.

@@ -40,7 +40,7 @@ export function PrivacyText() {
       <ul>
         <li>Telefono: indirizzo del PC, impronta del suo certificato, token di sessione cifrato nel Keystore/Keychain, preferenze.</li>
         <li>PC: nome del dispositivo associato, ultimo IP e orario di accesso, registro degli accessi (sicurezza), conservati sul PC.</li>
-        <li>Comandi (mouse, tastiera) e immagini dello schermo viaggiano in tempo reale fra i tuoi dispositivi e non vengono salvati.</li>
+        <li>Comandi (mouse, tastiera), immagini dello schermo e l’elenco delle app aperte sul PC (nome e titolo delle finestre) viaggiano in tempo reale fra i tuoi dispositivi e non vengono salvati.</li>
       </ul>
       <h3>Permessi</h3>
       <ul>
