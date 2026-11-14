@@ -93,7 +93,7 @@ def android() -> None:
         encoding="utf-8",
     )
 
-    # Splash screens: replace every existing splash.png with the Kursor logo.
+    # Splash screens: replace every existing splash.png with the PadLink logo.
     logo = render(512)
     for splash in ANDROID_RES.glob("drawable*/splash.png"):
         with Image.open(splash) as old:

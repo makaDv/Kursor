@@ -1,4 +1,4 @@
-# Pubblicare Kursor sugli store
+# Pubblicare PadLink sugli store
 
 Checklist per Google Play, Apple App Store e la distribuzione del programma Windows, con le risposte pronte per i questionari sulla privacy.
 
@@ -10,11 +10,23 @@ Checklist per Google Play, Apple App Store e la distribuzione del programma Wind
 
 | Cosa | Dove | Note |
 |---|---|---|
-| Identificativo definitivo dell'app | `client/capacitor.config.ts` (`appId`), `client/android/app/build.gradle`, progetto Xcode | Oggi è `io.github.makadv.kursor`. **Non si può più cambiare dopo la prima pubblicazione.** Se hai un dominio, usa `tuodominio.kursor`. |
+| Identificativo definitivo dell'app | `client/capacitor.config.ts` (`appId`), `client/android/app/build.gradle`, progetto Xcode | Oggi è `io.github.makadv.padlink`. **Non si può più cambiare dopo la prima pubblicazione.** Se hai un dominio, usa `tuodominio.padlink`. |
 | Nome e contatto | `docs/legal/PRIVACY.md`, `docs/legal/TERMS.md` | Sostituisci `[NOME / RAGIONE SOCIALE]` e `[EMAIL DI CONTATTO]`. Usa un'email dedicata. |
 | URL pubblico della privacy | Obbligatorio per entrambi gli store | Il repository è privato, quindi pubblica **solo** `PRIVACY.md`, per esempio con Google Sites, Notion pubblico o un repository pubblico separato che contenga solo quel file. |
-| Verifica del marchio "Kursor" | EUIPO / UIBM / USPTO | Controlla che il nome non sia già registrato nella classe 9 (software). |
+| Verifica del marchio "PadLink" | [TMview](https://www.tmdn.org/tmview/) (UE + nazionali), [USPTO](https://tmsearch.uspto.gov) | Il progetto si chiamava "Kursor", ma è stato rinominato perché suona identico a **Cursor**, marchio software registrato da Anysphere. Negli USA non risultano marchi PADLINK attivi (novembre 2026); **verifica in UE nelle classi 9 e 42 prima del lancio**. Valuta di registrarlo tu (EUIPO, circa 850 € per una classe). |
+| Contatto sicurezza | `SECURITY.md` | Sostituisci `[EMAIL DI SICUREZZA]` (può essere la stessa email di contatto). |
 | Account sviluppatore | Google Play Console (25 $ una tantum), Apple Developer Program (99 $/anno) | Per Google Play da privato servono verifica dell'identità e 12 tester per 14 giorni prima della produzione. |
+| Licenze open source | `scripts/collect_licenses.py` | Va eseguito prima di ogni build di rilascio (lo fa già `build.ps1`): genera i testi completi mostrati nell'app e nel programma PC. |
+
+### Obblighi che il codice non può risolvere
+
+| Obbligo | Quando | Cosa fare |
+|---|---|---|
+| **Stato di "trader" (Digital Services Act, UE)** | Sempre, entrambi gli store lo chiedono | Se l'app è **gratuita e senza alcun guadagno**, puoi dichiararti *non-trader* e i tuoi dati non vengono mostrati. Se guadagni (prezzo, acquisti in-app, donazioni, pubblicità) sei *trader*: nome, indirizzo, email e telefono diventano **pubblici** nella scheda. In quel caso conviene un indirizzo professionale. |
+| **Partita IVA / fisco** | Solo se guadagni | Con l'app gratuita non serve. Se la vendi, Apple e Google ti pagano come sviluppatore e i ricavi vanno dichiarati: chiedi a un commercialista (in Italia di solito serve la P.IVA, regime forfettario). |
+| **Revisione legale di Termini e Privacy** | Prima del lancio | Sono modelli accurati per *come funziona davvero* l'app, ma solo un avvocato può adattarli alla tua situazione. È una spesa una tantum, consigliata. |
+| **Età** | Prima di registrare gli account | Per gli account sviluppatore Google e Apple devi essere maggiorenne. |
+| **Responsabilità** | Facoltativo | Le esclusioni di garanzia nei Termini riducono il rischio, ma non lo azzerano per danni causati da difetti gravi. Correggi subito le vulnerabilità segnalate (`SECURITY.md`) e tieni l'app aggiornata. |
 
 ---
 
@@ -73,13 +85,13 @@ Aggiungi ai *secrets* del repository: `IOS_DIST_CERT_P12` (base64), `IOS_DIST_CE
 Gli utenti dello store devono poter scaricare il programma per il PC. Senza di lui l'app non fa nulla, e va scritto nella descrizione.
 
 ### Firma del codice: obbligatoria nella pratica
-Windows 11 con **Smart App Control** attivo **blocca** gli eseguibili non firmati (verificato su questo PC: `Kursor.exe` non firmato viene bloccato). Hai due strade:
+Windows 11 con **Smart App Control** attivo **blocca** gli eseguibili non firmati (verificato su questo PC: `PadLink.exe` non firmato viene bloccato). Hai due strade:
 
 1. **Microsoft Store (consigliato).** Lo store firma l'app: niente certificato da comprare e nessun avviso SmartScreen. Account sviluppatore individuale gratuito (2025+). Si pubblica come `.exe` o MSI (Win32) indicando l'URL dell'installer, oppure come MSIX.
-2. **Firma Authenticode tua.** Azure Trusted Signing (circa 10 $/mese, richiede verifica dell'identità) oppure un certificato OV/EV da una CA. Firma sia `Kursor.exe` sia `Kursor-Setup-*.exe` (comando in `packaging/windows/build.ps1`).
+2. **Firma Authenticode tua.** Azure Trusted Signing (circa 10 $/mese, richiede verifica dell'identità) oppure un certificato OV/EV da una CA. Firma sia `PadLink.exe` sia `PadLink-Setup-*.exe` (comando in `packaging/windows/build.ps1`).
 
 ### Build
-`powershell -ExecutionPolicy Bypass -File packaging\windows\build.ps1` produce `dist\Kursor\` e, se Inno Setup 6 è installato, `dist\Kursor-Setup-1.0.0.exe`.
+`powershell -ExecutionPolicy Bypass -File packaging\windows\build.ps1` produce `dist\PadLink\` e, se Inno Setup 6 è installato, `dist\PadLink-Setup-1.0.0.exe`.
 
 ### Cosa fa l'installer (trasparenza)
 - Installa per l'utente corrente, **senza diritti di amministratore**.
@@ -90,10 +102,31 @@ Windows 11 con **Smart App Control** attivo **blocca** gli eseguibili non firmat
 
 ---
 
+## 3b. Provare in produzione prima del lancio
+
+Entrambi gli store permettono di distribuire la **build vera, firmata, dallo store vero**, ma solo a tester scelti da te, prima di renderla pubblica.
+
+| Fase | Google Play | Apple | Windows |
+|---|---|---|---|
+| 1. Solo tu (minuti) | **Test interno**: fino a 100 tester via email, disponibile in pochi minuti, senza revisione completa. | **TestFlight interno**: fino a 100 membri del tuo team, nessuna revisione. | Installer firmato condiviso a mano, oppure Microsoft Store **pacchetto privato** (*private audience*). |
+| 2. Amici e beta (settimane) | **Test chiuso**: lista di tester o Google Group. **Obbligatorio per gli account personali nuovi: almeno 12 tester per 14 giorni consecutivi** prima di poter chiedere la produzione. | **TestFlight esterno**: fino a 10.000 tester tramite link pubblico; la prima build passa una breve *beta review*. | Microsoft Store *package flights* (gruppi di tester). |
+| 3. Lancio graduale | **Rilascio in produzione graduale** (es. 5% → 20% → 100%), con possibilità di fermarlo se ci sono problemi. Puoi anche limitarlo a un solo Paese. | **Phased release**: 7 giorni con percentuali crescenti, mettibile in pausa. Oppure rilascio manuale dopo l'approvazione. | Pubblicazione per mercato, con possibilità di nascondere la scheda. |
+
+Cosa controllare durante i test:
+- associazione con QR su telefoni diversi (Android vecchi e nuovi, iPhone), con il PC su Wi-Fi diversi;
+- **report pre-lancio di Google Play** (Firebase Test Lab automatico): crash e problemi di accessibilità. Il robot non può associarsi a un PC, quindi valuta solo la schermata iniziale;
+- installer Windows su un PC "pulito" con Smart App Control attivo, per verificare che la firma funzioni;
+- pausa, revoca, cambio di rete del PC, PC spento e poi riacceso;
+- dalle recensioni dei tester: testi poco chiari, permessi che spaventano.
+
+Ordine consigliato: test interno (1-2 giorni) → test chiuso con 12+ tester (14 giorni, obbligatorio su Play) → TestFlight esterno in parallelo → produzione graduale.
+
+---
+
 ## 4. Istruzioni per i revisori (copia nei campi "Review notes" / "App access")
 
 ```
-Kursor is a remote control for the user's OWN Windows PC (mouse, keyboard,
+PadLink is a remote control for the user's OWN Windows PC (mouse, keyboard,
 screen view), similar to a wireless trackpad. It needs the free companion
 program installed on the PC: <URL DOWNLOAD PROGRAMMA PC>.
 
@@ -101,7 +134,7 @@ No account, no sign-in, no data collected. Phone and PC talk directly over
 the local network through TLS with certificate pinning.
 
 How to test:
-1. On a Windows 10/11 PC on the same Wi-Fi, install and open Kursor.
+1. On a Windows 10/11 PC on the same Wi-Fi, install and open PadLink.
 2. Press "Associa un nuovo telefono" (Pair a new phone): a QR code appears.
 3. In the app tap "Scansiona il QR code" and scan it.
 4. Use Trackpad / Tastiera (Keyboard) / Schermo (Screen) tabs.
@@ -119,7 +152,7 @@ Registra un video di 1-2 minuti: installazione sul PC, scansione del QR, trackpa
 
 ## 5. Scheda dello store (testo di partenza)
 
-**Nome:** Kursor: controlla il tuo PC
+**Nome:** PadLink: controlla il tuo PC
 **Breve (80 caratteri):** Trackpad, tastiera e schermo del tuo PC sul telefono. Sicuro e senza account.
 
 **Descrizione:**
@@ -136,8 +169,8 @@ Trasforma il telefono in trackpad, tastiera e telecomando per il **tuo** PC Wind
 - Connessione cifrata con verifica del certificato del PC
 - Sul PC un indicatore mostra sempre quando il telefono è connesso; puoi mettere in pausa o revocare l'accesso in qualsiasi momento
 
-**Richiede** il programma gratuito Kursor sul PC (Windows 10/11): <URL>.
-Usa Kursor solo su computer tuoi o che sei autorizzato a gestire.
+**Richiede** il programma gratuito PadLink sul PC (Windows 10/11): <URL>.
+Usa PadLink solo su computer tuoi o che sei autorizzato a gestire.
 
 **Screenshot:** pairing, trackpad, tastiera, schermo, finestra del PC con indicatore verde.
 

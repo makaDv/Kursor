@@ -1,9 +1,9 @@
-"""Kursor for Windows: tray icon + pairing window around the same secure server.
+"""PadLink for Windows: tray icon + pairing window around the same secure server.
 
     python -m kursor desktop [--minimized]
 
 Design rules (transparency first, this is NOT a stealth tool):
-* a visible tray icon is always present while Kursor runs; it turns green and a
+* a visible tray icon is always present while PadLink runs; it turns green and a
   notification appears whenever a phone takes control;
 * a "Pausa" switch refuses remote control instantly without unpairing;
 * the pairing QR/PIN is only shown on request and expires after 5 minutes;
@@ -27,7 +27,7 @@ from pathlib import Path
 from tkinter import messagebox, ttk
 from typing import Any, Callable
 
-APP_NAME = "Kursor"
+APP_NAME = "PadLink"
 CONSENT_VERSION = 1
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
@@ -188,6 +188,11 @@ class DesktopApp:
 
         if start_minimized:
             self.root.withdraw()
+            # Started with Windows: say so every time, so PadLink can never run unnoticed.
+            n = len(self.svc.store.list())
+            self.root.after(2500, lambda: self._notify(
+                f"PadLink è attivo: {n} telefon{'o' if n == 1 else 'i'} associat{'o' if n == 1 else 'i'} "
+                "possono controllare questo PC. Apri l'icona per gestirli."))
         elif not self.svc.store.list():
             self.new_pairing()  # first launch: nothing paired yet, show the QR right away
         self.root.after(200, self._tick)
@@ -216,7 +221,7 @@ class DesktopApp:
         pad = {"padx": 16}
         top = ttk.Frame(self.root)
         top.pack(fill="x", pady=(14, 6), **pad)
-        ttk.Label(top, text="Kursor", style="Title.TLabel").pack(side="left")
+        ttk.Label(top, text="PadLink", style="Title.TLabel").pack(side="left")
         self.status = ttk.Label(top, text="", foreground=MUTED)
         self.status.pack(side="right")
 
@@ -258,12 +263,13 @@ class DesktopApp:
         foot = ttk.Frame(self.root)
         foot.pack(fill="x", pady=(6, 12), **pad)
         self.autostart_var = tk.BooleanVar(value=autostart_enabled())
-        ttk.Checkbutton(foot, text="Avvia Kursor all'accesso a Windows", variable=self.autostart_var,
+        ttk.Checkbutton(foot, text="Avvia PadLink all'accesso a Windows", variable=self.autostart_var,
                         command=self._toggle_autostart).pack(anchor="w")
         links = ttk.Frame(foot)
         links.pack(fill="x", pady=(8, 0))
         for text, cmd in (("Privacy", lambda: self.show_doc("PRIVACY.md", "Privacy")),
                           ("Termini", lambda: self.show_doc("TERMS.md", "Termini d'uso")),
+                          ("Licenze", lambda: self.show_doc("licenses/windows-third-party.txt", "Licenze open source")),
                           ("Registro accessi", self.open_logs),
                           ("Esci", self.quit)):
             ttk.Button(links, text=text, command=cmd).pack(side="left", padx=(0, 6))
@@ -283,7 +289,7 @@ class DesktopApp:
             w.pack_forget()
         if session is None:
             self.session_expires = None
-            self.pair_info.configure(text="Per collegare un telefono installa l'app Kursor (o apri il browser) "
+            self.pair_info.configure(text="Per collegare un telefono installa l'app PadLink (o apri il browser) "
                                           "e premi il pulsante qui sotto.")
             self.pair_info.pack(pady=(14, 8), padx=12)
             self.pair_btn.pack(pady=(0, 14))
@@ -319,7 +325,7 @@ class DesktopApp:
             self._render_pairing(None)  # expired or already used: never leave a stale QR on screen
             return
         self.pair_info.configure(
-            text=f"Inquadra il QR con l'app Kursor, oppure inserisci indirizzo e PIN.\n"
+            text=f"Inquadra il QR con l'app PadLink, oppure inserisci indirizzo e PIN.\n"
                  f"Valido ancora {left // 60}:{left % 60:02d} · monouso · non condividerlo")
 
     # -- devices / status --
@@ -438,10 +444,10 @@ class DesktopApp:
         self.root.withdraw()
         if not self.hidden_hint_shown:
             self.hidden_hint_shown = True
-            self._notify("Kursor resta attivo nell'area di notifica. Usa \"Esci\" per chiuderlo.")
+            self._notify("PadLink resta attivo nell'area di notifica. Usa \"Esci\" per chiuderlo.")
 
     def quit(self) -> None:
-        if self.connected and not messagebox.askyesno(APP_NAME, "Un telefono è connesso. Chiudere Kursor?"):
+        if self.connected and not messagebox.askyesno(APP_NAME, "Un telefono è connesso. Chiudere PadLink?"):
             return
         self.quitting = True
         self.rt_server.stop()
@@ -465,7 +471,7 @@ class DesktopApp:
             return
         post = self.ui_queue.put
         menu = pystray.Menu(
-            pystray.MenuItem("Apri Kursor", lambda: post(self.show), default=True),
+            pystray.MenuItem("Apri PadLink", lambda: post(self.show), default=True),
             pystray.MenuItem("Associa un nuovo telefono", lambda: post(lambda: (self.show(), self.new_pairing()))),
             pystray.MenuItem("Pausa controllo", lambda: post(self.toggle_pause), checked=lambda _: self.svc.paused),
             pystray.Menu.SEPARATOR,
@@ -480,7 +486,7 @@ class DesktopApp:
             return
         self.tray_active = active
         self.tray.icon = self._tray_image(active)
-        self.tray.title = "Kursor · telefono connesso" if active else "Kursor"
+        self.tray.title = "PadLink · telefono connesso" if active else "PadLink"
 
     def _notify(self, message: str) -> None:
         if self.tray is not None:
@@ -516,7 +522,7 @@ def ensure_consent(settings: Any) -> bool:
         root.iconbitmap(default=str(ico))
     accepted = tk.BooleanVar(value=False)
     text = (
-        "Kursor permette di controllare questo PC (mouse, tastiera, schermo, blocco e spegnimento) "
+        "PadLink permette di controllare questo PC (mouse, tastiera, schermo, blocco e spegnimento) "
         "da uno smartphone associato.\n\n"
         "• Usalo solo su computer tuoi o che sei autorizzato a gestire. Installarlo sul PC di altre persone "
         "senza il loro consenso è vietato e può costituire reato.\n"
@@ -524,10 +530,10 @@ def ensure_consent(settings: Any) -> bool:
         "i dispositivi persi.\n"
         "• Quando un telefono è connesso l'icona nell'area di notifica diventa verde e compare un avviso. "
         "Puoi mettere in pausa il controllo in qualsiasi momento.\n"
-        "• Kursor non raccoglie dati: tutto resta fra il PC e i tuoi dispositivi, in connessione cifrata.\n\n"
-        "Proseguendo accetti i Termini d'uso e l'Informativa privacy (consultabili anche dopo, dalla finestra di Kursor)."
+        "• PadLink non raccoglie dati: tutto resta fra il PC e i tuoi dispositivi, in connessione cifrata.\n\n"
+        "Proseguendo accetti i Termini d'uso e l'Informativa privacy (consultabili anche dopo, dalla finestra di PadLink)."
     )
-    tk.Label(root, text="Benvenuto in Kursor", bg=BG, fg=FG, font=("Segoe UI Semibold", 16)).pack(
+    tk.Label(root, text="Benvenuto in PadLink", bg=BG, fg=FG, font=("Segoe UI Semibold", 16)).pack(
         anchor="w", padx=20, pady=(18, 8))
     tk.Label(root, text=text, bg=BG, fg=FG, font=("Segoe UI", 10), justify="left", wraplength=510).pack(
         anchor="w", padx=20)
@@ -568,7 +574,7 @@ def main(argv: list[str] | None = None) -> int:
 
     instance = SingleInstance()
     if instance.already_running:
-        messagebox.showinfo(APP_NAME, "Kursor è già in esecuzione: cercalo nell'area di notifica (vicino all'orologio).")
+        messagebox.showinfo(APP_NAME, "PadLink è già in esecuzione: cercalo nell'area di notifica (vicino all'orologio).")
         return 0
 
     if not ensure_consent(settings):
@@ -585,7 +591,7 @@ def main(argv: list[str] | None = None) -> int:
         messagebox.showerror(
             APP_NAME,
             f"Impossibile avviare il server sulla porta {settings.port}.\n"
-            "Forse un'altra copia di Kursor (anche da terminale) è già attiva.",
+            "Forse un'altra copia di PadLink (anche da terminale) è già attiva.",
         )
         return 1
     audit("server_start", version=__version__, host=settings.host, port=settings.port, tls=settings.tls,

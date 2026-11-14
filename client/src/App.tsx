@@ -9,6 +9,7 @@ import ScreenPanel from './components/ScreenPanel'
 import SystemPanel from './components/SystemPanel'
 import MorePanel from './components/MorePanel'
 import { Icon, type IconName } from './components/Icon'
+import { TermsGate, termsAccepted } from './components/Legal'
 
 type Tab = 'trackpad' | 'keyboard' | 'screen' | 'system' | 'more'
 
@@ -24,6 +25,7 @@ type Boot = 'checking' | 'paired' | 'unpaired' | 'offline' | 'untrusted'
 
 export default function App() {
   const [boot, setBoot] = useState<Boot>('checking')
+  const [accepted, setAccepted] = useState(termsAccepted)
   const [tab, setTab] = useState<Tab>('trackpad')
   const [status, setStatus] = useState<SocketStatus>('idle')
 
@@ -73,6 +75,7 @@ export default function App() {
     if (status === 'untrusted') setBoot('untrusted')
   }, [status])
 
+  if (!accepted) return <TermsGate onAccept={() => setAccepted(true)} />
   if (boot === 'checking') {
     return <div className="flex h-full items-center justify-center text-gray-400">Connessione…</div>
   }
@@ -80,7 +83,7 @@ export default function App() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
         <Icon name="wifi-off" className="h-12 w-12 text-gray-500" />
-        <p className="text-gray-300">PC non raggiungibile. Verifica che Kursor sia avviato e che tu sia sulla stessa rete.</p>
+        <p className="text-gray-300">PC non raggiungibile. Verifica che PadLink sia avviato e che tu sia sulla stessa rete.</p>
         <button className="key px-6" onClick={() => location.reload()}>
           Riprova
         </button>
@@ -99,7 +102,7 @@ export default function App() {
         <h1 className="text-lg font-semibold">Certificato del PC cambiato</h1>
         <p className="max-w-xs text-sm text-gray-300">
           Il PC ha presentato un certificato diverso da quello associato. La connessione è stata bloccata per proteggerti
-          da intercettazioni. Se hai reinstallato Kursor o rigenerato i certificati sul PC, associa di nuovo.
+          da intercettazioni. Se hai reinstallato PadLink o rigenerato i certificati sul PC, associa di nuovo.
         </p>
         <button className="key px-6" onClick={() => setBoot('unpaired')}>
           Associa di nuovo
@@ -116,7 +119,7 @@ export default function App() {
       <header className="safe-top flex items-center justify-between border-b border-ink-800 bg-ink-950 px-4">
         <div className="flex h-12 items-center gap-2 font-semibold tracking-tight">
           <img src="/icons/icon.svg" alt="" className="h-6 w-6" />
-          Kursor
+          PadLink
         </div>
         <StatusPill status={status} />
       </header>

@@ -6,7 +6,7 @@ import Security
 /// Items are readable only after the first unlock, never leave this device
 /// (no iCloud Keychain sync, not restored onto another phone from a backup).
 final class SecureStore {
-    private let service = "io.github.makadv.kursor.secure"
+    private let service = "io.github.makadv.padlink.secure"
 
     private func baseQuery(_ key: String) -> [String: Any] {
         [

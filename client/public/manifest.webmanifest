@@ -1,6 +1,6 @@
 {
-  "name": "Kursor",
-  "short_name": "Kursor",
+  "name": "PadLink",
+  "short_name": "PadLink",
   "description": "Controllo remoto sicuro del tuo PC",
   "start_url": "/",
   "scope": "/",

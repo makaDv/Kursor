@@ -1,4 +1,4 @@
-"""Kursor command line.
+"""PadLink command line.
 
     python -m kursor run            start the daemon (opens a pairing window)
     python -m kursor desktop        start the Windows desktop app (tray + pairing window)
@@ -86,7 +86,7 @@ def _print_pairing(s: Settings, pin: str, code: str, expires_at: float) -> None:
     print(f"  │ PIN:     {pin[:3]} {pin[3:]}   (valido fino alle {expires}, monouso)")
     if verify:
         print(f"  │ Codice di verifica (app, inserimento manuale): {verify}")
-    print("  │ Oppure inquadra il QR con l'app Kursor o la fotocamera del telefono:")
+    print("  │ Oppure inquadra il QR con l'app PadLink o la fotocamera del telefono:")
     print("  └───────────────────────────────────────────────────────")
     print(buf.getvalue())
     if png_path:
@@ -110,7 +110,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     svc, bundle = rt.svc, rt.bundle
 
     base = _base_url(s)
-    print(f"\n  Kursor v{__version__}")
+    print(f"\n  PadLink v{__version__}")
     print(f"  URL:            {base}")
     if bundle:
         print(f"  Certificato CA: {base}/ca.crt")
@@ -230,9 +230,9 @@ def cmd_cert(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="kursor", description="Kursor: controllo remoto sicuro del PC")
+    p = argparse.ArgumentParser(prog="kursor", description="PadLink: controllo remoto sicuro del PC")
     p.add_argument("--version", action="version", version=__version__)
-    p.add_argument("--data-dir", help="cartella dati (default ~/.kursor o $KURSOR_DATA_DIR)")
+    p.add_argument("--data-dir", help="cartella dati (default ~/.padlink o $KURSOR_DATA_DIR)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     def url_opts(sp: argparse.ArgumentParser) -> None:

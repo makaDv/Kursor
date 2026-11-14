@@ -1,4 +1,4 @@
-# Windows version resource for Kursor.exe (shown in Properties > Details).
+# Windows version resource for PadLink.exe (shown in Properties > Details).
 VSVersionInfo(
   ffi=FixedFileInfo(
     filevers=(1, 0, 0, 0),
@@ -13,13 +13,13 @@ VSVersionInfo(
   kids=[
     StringFileInfo([
       StringTable('041004B0', [
-        StringStruct('CompanyName', 'Kursor'),
-        StringStruct('FileDescription', 'Kursor - controllo del PC dallo smartphone'),
+        StringStruct('CompanyName', 'PadLink'),
+        StringStruct('FileDescription', 'PadLink - controllo del PC dallo smartphone'),
         StringStruct('FileVersion', '1.0.0'),
-        StringStruct('InternalName', 'Kursor'),
-        StringStruct('LegalCopyright', 'Copyright (c) 2026 Kursor'),
-        StringStruct('OriginalFilename', 'Kursor.exe'),
-        StringStruct('ProductName', 'Kursor'),
+        StringStruct('InternalName', 'PadLink'),
+        StringStruct('LegalCopyright', 'Copyright (c) 2026 PadLink'),
+        StringStruct('OriginalFilename', 'PadLink.exe'),
+        StringStruct('ProductName', 'PadLink'),
         StringStruct('ProductVersion', '1.0.0')
       ])
     ]),

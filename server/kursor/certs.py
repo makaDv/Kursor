@@ -92,8 +92,8 @@ def _create_ca(cert_path: Path, key_path: Path) -> tuple[x509.Certificate, ec.El
     key = ec.generate_private_key(ec.SECP256R1())
     name = x509.Name(
         [
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Kursor"),
-            x509.NameAttribute(NameOID.COMMON_NAME, "Kursor Local CA"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "PadLink"),
+            x509.NameAttribute(NameOID.COMMON_NAME, "PadLink Local CA"),
         ]
     )
     permitted: list[x509.GeneralName] = [x509.DNSName("localhost"), x509.DNSName("local")]

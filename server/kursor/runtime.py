@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+import os
+
+# PadLink sends no telemetry. FastAPI pulls in opentelemetry-api (a no-op without
+# an SDK); disable any SDK/exporter that might be present so nothing can ever leave the PC.
+os.environ["OTEL_SDK_DISABLED"] = "true"
+os.environ["OTEL_TRACES_EXPORTER"] = "none"
+os.environ["OTEL_METRICS_EXPORTER"] = "none"
+os.environ["OTEL_LOGS_EXPORTER"] = "none"
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any

@@ -34,7 +34,7 @@ import okhttp3.WebSocketListener;
 import okio.ByteString;
 
 /**
- * Native bridge used by the Kursor app (see client/src/lib/native.ts).
+ * Native bridge used by the PadLink app (see client/src/lib/native.ts).
  *
  * All traffic to the PC goes through here instead of the WebView so the PC's
  * certificate can be pinned without installing any CA on the phone.
@@ -355,7 +355,7 @@ public class KursorNativePlugin extends Plugin {
     public void scanQr(PluginCall call) {
         ScanOptions opts = new ScanOptions()
             .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-            .setPrompt("Inquadra il QR mostrato da Kursor sul PC")
+            .setPrompt("Inquadra il QR mostrato da PadLink sul PC")
             .setBeepEnabled(false)
             .setOrientationLocked(false);
         startActivityForResult(call, opts.createScanIntent(getActivity()), "onScanResult");

@@ -1,4 +1,4 @@
-"""Runtime configuration for the Kursor daemon."""
+"""Runtime configuration for the PadLink daemon."""
 
 from __future__ import annotations
 
@@ -13,7 +13,11 @@ def default_data_dir() -> Path:
     env = os.environ.get("KURSOR_DATA_DIR")
     if env:
         return Path(env).expanduser()
-    return Path.home() / ".kursor"
+    new, legacy = Path.home() / ".padlink", Path.home() / ".kursor"
+    # Installs made before the rename keep their paired devices and certificates.
+    if not new.exists() and legacy.exists():
+        return legacy
+    return new
 
 
 def default_static_dir() -> Path:

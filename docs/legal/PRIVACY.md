@@ -1,4 +1,4 @@
-# Informativa sulla privacy di Kursor
+# Informativa sulla privacy di PadLink
 
 _Ultimo aggiornamento: 14 novembre 2026_
 
@@ -6,15 +6,15 @@ _Ultimo aggiornamento: 14 novembre 2026_
 
 ## In breve
 
-**Kursor non raccoglie, non vende e non condivide alcun dato personale.** Non ci sono account, server dello sviluppatore, pubblicità, analytics, crash reporting né SDK di terze parti. Tutto resta fra il tuo telefono e il tuo PC.
+**PadLink non raccoglie, non vende e non condivide alcun dato personale.** Non ci sono account, server dello sviluppatore, pubblicità, analytics, crash reporting né SDK di terze parti. Tutto resta fra il tuo telefono e il tuo PC.
 
 ## Titolare
 
 [NOME / RAGIONE SOCIALE], contatto: [EMAIL DI CONTATTO].
 
-## Come funziona Kursor
+## Come funziona PadLink
 
-Kursor ha due parti, entrambe sotto il tuo controllo:
+PadLink ha due parti, entrambe sotto il tuo controllo:
 
 1. il **programma per PC** (Windows), che installi sul computer da controllare;
 2. l'**app** (Android/iOS) o la web app, che usi sul telefono.
@@ -43,9 +43,9 @@ Lo sviluppatore non riceve e non possiede copie di nessuno di questi dati.
 
 Hai il pieno controllo dei dati, perché si trovano solo sui tuoi dispositivi:
 
-- **revoca un dispositivo** dall'app (Altro › Dispositivi) o dalla finestra di Kursor sul PC;
+- **revoca un dispositivo** dall'app (Altro › Dispositivi) o dalla finestra di PadLink sul PC;
 - **cancella i dati del telefono** disinstallando l'app, oppure con "Disconnetti";
-- **cancella i dati del PC** disinstallando Kursor ed eliminando la cartella `%USERPROFILE%\.kursor`.
+- **cancella i dati del PC** disinstallando PadLink ed eliminando la cartella `%USERPROFILE%\.padlink`.
 
 Visto che non trattiamo i tuoi dati, non abbiamo nulla da esportare o cancellare per conto tuo. Per qualsiasi domanda puoi comunque scrivere a [EMAIL DI CONTATTO]. Puoi anche presentare reclamo all'autorità di controllo (in Italia, il Garante per la protezione dei dati personali).
 
@@ -58,7 +58,7 @@ Visto che non trattiamo i tuoi dati, non abbiamo nulla da esportare o cancellare
 
 ## Minori
 
-Kursor non è rivolto a minori di 13 anni e non raccoglie consapevolmente dati di minori.
+PadLink non è rivolto a minori di 13 anni e non raccoglie consapevolmente dati di minori.
 
 ## Modifiche
 
@@ -66,13 +66,13 @@ Eventuali modifiche a questa informativa saranno pubblicate a questo indirizzo e
 
 ---
 
-# Kursor Privacy Policy (English)
+# PadLink Privacy Policy (English)
 
 _Last updated: 14 November 2026_
 
-**Kursor does not collect, sell or share any personal data.** There are no accounts, no developer servers, no ads, no analytics, no crash reporting and no third-party SDKs.
+**PadLink does not collect, sell or share any personal data.** There are no accounts, no developer servers, no ads, no analytics, no crash reporting and no third-party SDKs.
 
-**How it works.** The phone app talks **directly** to the Kursor program on *your* PC over your local network, through an encrypted TLS connection authenticated by certificate pinning (the PC's fingerprint comes from the pairing QR code, or you confirm it with a verification code). Nothing passes through developer servers, because there are none. If you choose to set up a tunnel (for example Cloudflare or WireGuard), that service is yours and subject to its own terms.
+**How it works.** The phone app talks **directly** to the PadLink program on *your* PC over your local network, through an encrypted TLS connection authenticated by certificate pinning (the PC's fingerprint comes from the pairing QR code, or you confirm it with a verification code). Nothing passes through developer servers, because there are none. If you choose to set up a tunnel (for example Cloudflare or WireGuard), that service is yours and subject to its own terms.
 
 **Data stored on your devices only.**
 - *Phone:* the PC address, its certificate fingerprint, a session token (encrypted in the Android Keystore or iOS Keychain) and your preferences.
@@ -86,10 +86,10 @@ _Last updated: 14 November 2026_
 **Control and deletion.**
 - Revoke a device from the app or from the PC window.
 - Uninstall the app to erase the phone data.
-- Uninstall Kursor and delete `%USERPROFILE%\.kursor` to erase the PC data.
+- Uninstall PadLink and delete `%USERPROFILE%\.padlink` to erase the PC data.
 
 The developer holds no copy of any of this data.
 
-**Children.** Kursor is not directed at children under 13.
+**Children.** PadLink is not directed at children under 13.
 
 **Contact.** [NAME / COMPANY], [CONTACT EMAIL].

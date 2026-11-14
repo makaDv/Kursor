@@ -1,4 +1,4 @@
-package io.github.makadv.kursor;
+package io.github.makadv.padlink;
 
 import com.getcapacitor.BridgeActivity;
 

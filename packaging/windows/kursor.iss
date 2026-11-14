@@ -1,24 +1,24 @@
-; Inno Setup script for the Kursor Windows installer.
+; Inno Setup script for the PadLink Windows installer.
 ; Build: packaging/windows/build.ps1 (needs Inno Setup 6: winget install JRSoftware.InnoSetup)
 ;
-; Per-user install (no administrator rights): Kursor never runs elevated.
+; Per-user install (no administrator rights): PadLink never runs elevated.
 ; On first launch Windows asks for permission through the firewall: allow PRIVATE networks only.
 
 #define AppVersion "1.0.0"
 
 [Setup]
 AppId={{7B6E3C2A-9D41-4E8B-A1F5-2C7D9E0B4F13}
-AppName=Kursor
+AppName=PadLink
 AppVersion={#AppVersion}
-AppPublisher=Kursor
-DefaultDirName={localappdata}\Programs\Kursor
-DefaultGroupName=Kursor
+AppPublisher=PadLink
+DefaultDirName={localappdata}\Programs\PadLink
+DefaultGroupName=PadLink
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\..\dist
-OutputBaseFilename=Kursor-Setup-{#AppVersion}
+OutputBaseFilename=PadLink-Setup-{#AppVersion}
 SetupIconFile=..\..\server\kursor\assets\kursor.ico
-UninstallDisplayIcon={app}\Kursor.exe
+UninstallDisplayIcon={app}\PadLink.exe
 LicenseFile=..\..\docs\legal\TERMS.md
 Compression=lzma2
 SolidCompression=yes
@@ -33,25 +33,25 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "autostart"; Description: "Avvia Kursor all'accesso a Windows"; Flags: unchecked
+Name: "autostart"; Description: "Avvia PadLink all'accesso a Windows"; Flags: unchecked
 
 [Files]
-Source: "..\..\dist\Kursor\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\dist\PadLink\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\Kursor"; Filename: "{app}\Kursor.exe"
-Name: "{group}\Disinstalla Kursor"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\Kursor"; Filename: "{app}\Kursor.exe"; Tasks: desktopicon
+Name: "{group}\PadLink"; Filename: "{app}\PadLink.exe"
+Name: "{group}\Disinstalla PadLink"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\PadLink"; Filename: "{app}\PadLink.exe"; Tasks: desktopicon
 
 [Registry]
 ; Same key the app's "Avvia all'accesso" checkbox manages; removed on uninstall.
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Kursor"; ValueData: """{app}\Kursor.exe"" --minimized"; Tasks: autostart; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "PadLink"; ValueData: """{app}\PadLink.exe"" --minimized"; Tasks: autostart; Flags: uninsdeletevalue
 
 [Run]
-Filename: "{app}\Kursor.exe"; Description: "{cm:LaunchProgram,Kursor}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\PadLink.exe"; Description: "{cm:LaunchProgram,PadLink}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "{cmd}"; Parameters: "/C taskkill /IM Kursor.exe /F"; Flags: runhidden; RunOnceId: "StopKursor"
+Filename: "{cmd}"; Parameters: "/C taskkill /IM PadLink.exe /F"; Flags: runhidden; RunOnceId: "StopKursor"
 
 [UninstallDelete]
 ; Remove the autostart entry even if it was enabled from inside the app.
@@ -62,9 +62,9 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'Kursor');
-    if MsgBox('Eliminare anche i dati di Kursor (dispositivi associati, certificati, registro accessi)?',
+    RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'PadLink');
+    if MsgBox('Eliminare anche i dati di PadLink (dispositivi associati, certificati, registro accessi)?',
               mbConfirmation, MB_YESNO) = IDYES then
-      DelTree(ExpandConstant('{%USERPROFILE}\.kursor'), True, True, True);
+      DelTree(ExpandConstant('{%USERPROFILE}\.padlink'), True, True, True);
   end;
 end;

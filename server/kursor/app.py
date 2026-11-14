@@ -161,7 +161,7 @@ def create_app(svc: Services) -> FastAPI:
         finally:
             task.cancel()
 
-    app = FastAPI(title="Kursor", version=__version__, lifespan=lifespan, docs_url=None, redoc_url=None,
+    app = FastAPI(title="PadLink", version=__version__, lifespan=lifespan, docs_url=None, redoc_url=None,
                   openapi_url=None)
     app.state.svc = svc
 
@@ -257,7 +257,7 @@ def create_app(svc: Services) -> FastAPI:
         if result is PairResult.NO_SESSION:
             audit("pair_failed", logging.WARNING, ip=ip, reason="no_session")
             return error(401, "pairing_closed",
-                         "Nessuna associazione attiva. Sul PC apri Kursor e premi «Associa un nuovo telefono».")
+                         "Nessuna associazione attiva. Sul PC apri PadLink e premi «Associa un nuovo telefono».")
 
         lockout = svc.guard.fail(ip)
         if result is PairResult.EXHAUSTED:

@@ -1,4 +1,4 @@
-# PyInstaller spec for the Kursor Windows program.
+# PyInstaller spec for the PadLink Windows program.
 # Build with packaging/windows/build.ps1 (it compiles the web client first).
 #
 # One-folder layout on purpose:
@@ -34,7 +34,8 @@ a = Analysis(
     pathex=[str(SERVER)],
     datas=datas,
     hiddenimports=hiddenimports,
-    excludes=["pytest", "IPython", "matplotlib", "numpy"],
+    # No telemetry SDK/exporters may ever be bundled (privacy: "no data collected").
+    excludes=["pytest", "IPython", "matplotlib", "numpy", "opentelemetry.sdk", "opentelemetry.exporter"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)
@@ -44,7 +45,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="Kursor",
+    name="PadLink",
     icon=str(SERVER / "kursor" / "assets" / "kursor.ico"),
     version=str(Path(SPECPATH) / "version_info.txt"),
     console=False,
@@ -52,4 +53,4 @@ exe = EXE(
     upx=False,  # UPX-packed binaries are a classic antivirus false-positive trigger
 )
 
-coll = COLLECT(exe, a.binaries, a.datas, name="Kursor", upx=False)
+coll = COLLECT(exe, a.binaries, a.datas, name="PadLink", upx=False)

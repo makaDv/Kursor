@@ -1,4 +1,4 @@
-/* Kursor service worker: caches the app shell only. API, WebSocket and
+/* PadLink service worker: caches the app shell only. API, WebSocket and
  * certificate requests always go to the network and are never stored. */
 const CACHE = 'kursor-shell-v1'
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png']

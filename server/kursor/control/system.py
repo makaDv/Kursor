@@ -31,7 +31,7 @@ def perform(action: str) -> None:
             if not ctypes.windll.powrprof.SetSuspendState(False, False, False):
                 raise OSError("SetSuspendState failed")
         else:
-            _run(["shutdown", "/s", "/t", "10", "/c", "Kursor: spegnimento remoto"])
+            _run(["shutdown", "/s", "/t", "10", "/c", "PadLink: spegnimento remoto"])
     elif sys.platform == "darwin":
         if action == "lock":
             _run(["pmset", "displaysleepnow"])

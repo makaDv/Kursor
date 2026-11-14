@@ -100,7 +100,7 @@ export default function MorePanel({ onLoggedOut }: { onLoggedOut: () => void }) 
 
       <section className="flex flex-col items-center gap-2 pt-2">
         <LegalLinks />
-        <p className="text-[11px] text-gray-600">Kursor {APP_VERSION}</p>
+        <p className="text-[11px] text-gray-600">PadLink {APP_VERSION}</p>
       </section>
 
       {toRevoke && (

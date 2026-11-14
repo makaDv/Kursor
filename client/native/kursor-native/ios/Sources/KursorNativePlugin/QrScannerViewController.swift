@@ -22,7 +22,7 @@ final class QrScannerViewController: UIViewController, AVCaptureMetadataOutputOb
         view.backgroundColor = .black
 
         let hint = UILabel()
-        hint.text = "Inquadra il QR mostrato da Kursor sul PC"
+        hint.text = "Inquadra il QR mostrato da PadLink sul PC"
         hint.textColor = .white
         hint.font = .preferredFont(forTextStyle: .headline)
         hint.numberOfLines = 0
@@ -54,7 +54,7 @@ final class QrScannerViewController: UIViewController, AVCaptureMetadataOutputOb
                 DispatchQueue.main.async { granted ? self.configure() : self.finish(nil) }
             }
         default:
-            hint.text = "Accesso alla fotocamera negato. Abilitalo in Impostazioni › Kursor, oppure inserisci indirizzo e PIN a mano."
+            hint.text = "Accesso alla fotocamera negato. Abilitalo in Impostazioni › PadLink, oppure inserisci indirizzo e PIN a mano."
         }
     }
 

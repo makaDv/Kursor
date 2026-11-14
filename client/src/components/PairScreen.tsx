@@ -86,7 +86,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
         return doPair(secret, saved)
       }
       if (!probe.fingerprint) {
-        setError('Il PC non presenta un certificato Kursor valido.')
+        setError('Il PC non presenta un certificato PadLink valido.')
       } else {
         setVerify({ cfg: { origin, pin: probe.fingerprint }, secret })
       }
@@ -103,7 +103,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
     if (!origin) {
       setError(
         LAN_ONLY
-          ? 'Indirizzo non valido. Su iPhone Kursor si collega solo a PC sulla stessa rete Wi-Fi (es. 192.168.1.10).'
+          ? 'Indirizzo non valido. Su iPhone PadLink si collega solo a PC sulla stessa rete Wi-Fi (es. 192.168.1.10).'
           : 'Indirizzo del PC non valido (es. 192.168.1.10:8443)',
       )
       return
@@ -123,7 +123,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
     setError(null)
     try {
       const { value } = await KursorNative.scanQr()
-      if (value && !handleLink(value)) setError('Questo QR non è un codice di associazione Kursor.')
+      if (value && !handleLink(value)) setError('Questo QR non è un codice di associazione PadLink.')
     } catch {
       setError('Fotocamera non disponibile. Inserisci indirizzo e PIN a mano.')
     }
@@ -146,7 +146,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
       <div className="safe-top safe-bottom flex h-full flex-col items-center justify-center gap-6 overflow-y-auto px-6 text-center">
         <h1 className="text-xl font-semibold">Verifica il PC</h1>
         <p className="max-w-xs text-sm text-gray-400">
-          Controlla che nella finestra di Kursor sul PC compaia <b>esattamente</b> questo codice di verifica:
+          Controlla che nella finestra di PadLink sul PC compaia <b>esattamente</b> questo codice di verifica:
         </p>
         <p className="rounded-2xl bg-ink-800 px-5 py-4 font-mono text-2xl tracking-wider text-accent-2">
           {verificationCode(verify.cfg.pin!)}
@@ -181,7 +181,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
         <h1 className="text-2xl font-semibold">Associa questo dispositivo</h1>
         <p className="max-w-xs text-center text-sm text-gray-400">
           {isNative
-            ? 'Apri Kursor sul PC e inquadra il QR code, oppure inserisci indirizzo e PIN.'
+            ? 'Apri PadLink sul PC e inquadra il QR code, oppure inserisci indirizzo e PIN.'
             : 'Inserisci il PIN a 6 cifre mostrato sul PC, oppure inquadra il QR code.'}
         </p>
       </div>

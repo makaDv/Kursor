@@ -1,6 +1,6 @@
 # Third-party notices
 
-Kursor includes the following open-source components. Each one remains under its own license, and the full license texts are distributed with the respective packages.
+PadLink includes the following open-source components. Each one remains under its own license, and the full license texts are distributed with the respective packages.
 
 ## Phone apps (Android / iOS) and web app
 
@@ -37,7 +37,7 @@ These libraries are used without modification. The Windows installer uses PyInst
 - Source code: https://github.com/moses-palmer/pynput and https://github.com/moses-palmer/pystray
 - License text: https://www.gnu.org/licenses/lgpl-3.0.html
 
-Kursor's own source code is not covered by the LGPL.
+PadLink's own source code is not covered by the LGPL.
 
 > Regenerate the full list before every release:
 > `pip-licenses --with-urls --format=markdown` (Python) and `npx license-checker --summary` (client).

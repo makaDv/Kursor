@@ -7,7 +7,7 @@ type Action = 'lock' | 'sleep' | 'shutdown'
 
 const ACTIONS: { id: Action; label: string; desc: string; icon: IconName; danger: boolean }[] = [
   { id: 'lock', label: 'Blocca', desc: 'Blocca la sessione del PC (serve la password per rientrare).', icon: 'lock', danger: false },
-  { id: 'sleep', label: 'Sospendi', desc: 'Mette il PC in sospensione. Kursor non sarà raggiungibile finché non si risveglia.', icon: 'moon', danger: true },
+  { id: 'sleep', label: 'Sospendi', desc: 'Mette il PC in sospensione. PadLink non sarà raggiungibile finché non si risveglia.', icon: 'moon', danger: true },
   { id: 'shutdown', label: 'Spegni', desc: 'Spegne il PC tra 10 secondi. Il lavoro non salvato andrà perso.', icon: 'power', danger: true },
 ]
 

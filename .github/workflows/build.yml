@@ -1,4 +1,4 @@
-# Builds every Kursor deliverable. Manual trigger only (saves Actions minutes:
+# Builds every PadLink deliverable. Manual trigger only (saves Actions minutes:
 # macOS minutes count 10x on private repositories).
 #
 #   gh workflow run build.yml -f targets=all        # or: android | ios | windows
@@ -73,7 +73,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
       - uses: actions/setup-python@v5
-        with: { python-version: "3.13" }
+        with: { python-version: "3.14" }
       - name: Build exe + installer
         shell: pwsh
         run: |
@@ -82,4 +82,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: dist/Kursor-Setup-*.exe
+          path: dist/PadLink-Setup-*.exe

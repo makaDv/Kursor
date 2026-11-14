@@ -1,4 +1,4 @@
-# Kursor
+# PadLink
 
 Controlla il tuo PC dallo smartphone: trackpad, tastiera, scorciatoie, streaming dello schermo e azioni di sistema.
 
@@ -20,7 +20,7 @@ Privacy, termini e licenze: [`docs/legal/`](docs/legal/).
 ## Struttura
 
 ```
-Kursor/
+PadLink/
 ├── server/
 │   ├── requirements.txt
 │   └── kursor/
@@ -79,21 +79,21 @@ Kursor/
 | Revoca | `python -m kursor revoke <id>` oppure il pulsante nell'app. Le sessioni live si chiudono entro circa 2 secondi (codice 4409). Anche gli access token ancora validi smettono subito di funzionare. |
 | Azioni distruttive | Il pulsante va **tenuto premuto** per confermare. Il server richiede `confirm` uguale al nome dell'azione e accetta al massimo 1 azione ogni 5 s per dispositivo. |
 | Input malevolo | Validazione di ogni comando (tipi, limiti, whitelist dei tasti) e rate limit per connessione. I pulsanti premuti vengono rilasciati alla disconnessione. |
-| Audit | Log JSON-lines con rotazione in `~/.kursor/logs/access.log`: pairing, fallimenti, blocchi, refresh, riuso di token, revoche, connessioni WS e azioni di sistema. Il testo digitato non viene registrato. |
+| Audit | Log JSON-lines con rotazione in `~/.padlink/logs/access.log`: pairing, fallimenti, blocchi, refresh, riuso di token, revoche, connessioni WS e azioni di sistema. Il testo digitato non viene registrato. |
 | Header | CSP restrittiva, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, HSTS, COOP. Niente docs/OpenAPI esposti. |
 
-I dati sensibili (chiave di firma, dispositivi, CA, log) stanno in `~/.kursor` (oppure in `$KURSOR_DATA_DIR`), fuori dal repository.
+I dati sensibili (chiave di firma, dispositivi, CA, log) stanno in `~/.padlink` (oppure in `$KURSOR_DATA_DIR`), fuori dal repository.
 
 ---
 
 ## 0. Programma per PC (utenti finali)
 
-Scarica `Kursor-Setup-x.y.z.exe` e installalo: non servono diritti di amministratore. Al primo avvio:
+Scarica `PadLink-Setup-x.y.z.exe` e installalo: non servono diritti di amministratore. Al primo avvio:
 1. accetta i termini (schermata di benvenuto);
 2. Windows chiede l'accesso alla rete: **consenti solo le reti private**;
-3. premi **Associa un nuovo telefono** e inquadra il QR con l'app Kursor.
+3. premi **Associa un nuovo telefono** e inquadra il QR con l'app PadLink.
 
-Chiudendo la finestra Kursor resta nell'area di notifica (icona vicino all'orologio). Dal menu dell'icona: Apri, Associa, **Pausa controllo**, Esci.
+Chiudendo la finestra PadLink resta nell'area di notifica (icona vicino all'orologio). Dal menu dell'icona: Apri, Associa, **Pausa controllo**, Esci.
 Da sorgente: `cd server; .venv\Scripts\python -m kursor desktop`. Build dell'installer: `packaging\windows\build.ps1` (vedi `docs/store/PUBLISHING.md` per la firma).
 
 ## 1. Installazione
@@ -102,7 +102,7 @@ Prerequisiti: **Python 3.11+** e **Node.js 20+**.
 
 ```powershell
 # Windows (PowerShell)
-cd Kursor\server
+cd PadLink\server
 python -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
 
@@ -113,7 +113,7 @@ npm run build          # genera client/dist, servita dal server
 
 ```bash
 # Linux / macOS
-cd Kursor/server
+cd PadLink/server
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 cd ../client && npm install && npm run build
@@ -129,8 +129,8 @@ cd server
 .venv\Scripts\python -m kursor run
 ```
 
-Al primo avvio Kursor:
-1. crea la **CA locale** e il **certificato del server** per gli IP LAN del PC (`~/.kursor/certs`);
+Al primo avvio PadLink:
+1. crea la **CA locale** e il **certificato del server** per gli IP LAN del PC (`~/.padlink/certs`);
 2. stampa l'**URL** (es. `https://192.168.1.10:8443`), l'impronta SHA-256 della CA, un **PIN** e un **QR code**.
 
 Consenti l'accesso quando Windows Firewall lo chiede, **solo per le reti private**.
@@ -150,7 +150,7 @@ I certificati si generano da soli a `run`. Puoi anche gestirli a mano:
 
 1. Dal telefono, sulla stessa Wi-Fi, apri `https://<IP-del-PC>:8443/ca.crt`. Accetta l'avviso del browser solo per questo download.
 2. Prima di fidarti, confronta l'impronta SHA-256 mostrata dal telefono con quella stampata nel terminale.
-3. **iOS:** Impostazioni → *Profilo scaricato* → Installa. Poi Impostazioni → Generali → Info → **Impostazioni certificati attendibili** → attiva "Kursor Local CA".
+3. **iOS:** Impostazioni → *Profilo scaricato* → Installa. Poi Impostazioni → Generali → Info → **Impostazioni certificati attendibili** → attiva "PadLink Local CA".
    **Android:** Impostazioni → Sicurezza → Crittografia e credenziali → Installa un certificato → **Certificato CA** → scegli `kursor-ca.crt`.
    (Chrome per Android usa i certificati utente. Alcune versioni potrebbero comunque mostrare un avviso: in quel caso usa Tailscale o il tunnel.)
 
@@ -191,7 +191,7 @@ Puoi vedere e revocare i dispositivi anche dall'app (scheda **Altro**).
 **Non** aprire la porta 8443 sul router. Scegli una di queste opzioni.
 
 ### Opzione A: Tailscale / WireGuard (consigliata, la più semplice)
-- **Tailscale:** installalo su PC e telefono con lo stesso account. Apri `https://<IP-100.x-del-PC>:8443`. Kursor include gli IP 100.64.0.0/10 nel certificato se il PC li espone all'avvio. Se cambia rete, riavvia Kursor.
+- **Tailscale:** installalo su PC e telefono con lo stesso account. Apri `https://<IP-100.x-del-PC>:8443`. PadLink include gli IP 100.64.0.0/10 nel certificato se il PC li espone all'avvio. Se cambia rete, riavvia PadLink.
 - **WireGuard:** server sul router o su un dispositivo sempre acceso. Per il telefono vedi l'esempio [`docs/wireguard-peer.example.conf`](docs/wireguard-peer.example.conf).
 
 ### Opzione B: Cloudflare Tunnel (+ Cloudflare Access)
@@ -202,13 +202,13 @@ cloudflared tunnel create kursor
 cloudflared tunnel route dns kursor kursor.tuodominio.it
 # configura docs/cloudflared-config.example.yml in %USERPROFILE%\.cloudflared\config.yml
 ```
-Avvia Kursor **solo su loopback**: TLS lo termina Cloudflare e il traffico locale non lascia il PC.
+Avvia PadLink **solo su loopback**: TLS lo termina Cloudflare e il traffico locale non lascia il PC.
 ```powershell
 .venv\Scripts\python -m kursor run --host 127.0.0.1 --port 8080 --no-tls `
     --public-origin https://kursor.tuodominio.it --trust-proxy
 cloudflared tunnel run kursor
 ```
-**Fortemente consigliato:** nella dashboard Zero Trust crea un'applicazione **Cloudflare Access** per `kursor.tuodominio.it`, con policy *email = la tua* e OTP. Così, prima ancora di Kursor, c'è un secondo fattore.
+**Fortemente consigliato:** nella dashboard Zero Trust crea un'applicazione **Cloudflare Access** per `kursor.tuodominio.it`, con policy *email = la tua* e OTP. Così, prima ancora di PadLink, c'è un secondo fattore.
 
 `--no-tls` viene rifiutato se `--host` non è loopback, così non si espone per errore HTTP in chiaro sulla LAN.
 
@@ -259,7 +259,7 @@ Rigenerare le icone: `server\.venv\Scripts\python scripts\make_icons.py`
 4. **Codici di chiusura:** `4401` token scaduto/non valido · `4403` origine vietata · `4408` timeout auth · `4409` dispositivo revocato · `4423` controllo in pausa sul PC · `4429` bloccato.
 
 ## Limiti noti
-- Windows 11 con Smart App Control blocca `Kursor.exe` se non è firmato: per distribuirlo serve la firma del codice oppure il Microsoft Store (vedi `docs/store/PUBLISHING.md`).
+- Windows 11 con Smart App Control blocca `PadLink.exe` se non è firmato: per distribuirlo serve la firma del codice oppure il Microsoft Store (vedi `docs/store/PUBLISHING.md`).
 - Il programma per PC esiste solo per Windows.
 - Il blocco anti brute force sta in memoria: si azzera al riavvio del server. Il PIN però scade e viene distrutto dopo 5 errori, a prescindere.
 - Con l'ibernazione attiva, Windows può ibernare invece di sospendere.

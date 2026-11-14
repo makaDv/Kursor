@@ -2,7 +2,7 @@
   "name": "kursor-native",
   "version": "1.0.0",
   "private": true,
-  "description": "Kursor native bridge: certificate-pinned HTTPS/WebSocket, secure storage, QR scanner",
+  "description": "PadLink native bridge: certificate-pinned HTTPS/WebSocket, secure storage, QR scanner",
   "license": "UNLICENSED",
   "main": "index.js",
   "types": "index.d.ts",

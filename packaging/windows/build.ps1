@@ -1,4 +1,4 @@
-# Builds dist\Kursor\Kursor.exe and (if Inno Setup is installed) dist\Kursor-Setup-<ver>.exe
+# Builds dist\PadLink\PadLink.exe and (if Inno Setup is installed) dist\PadLink-Setup-<ver>.exe
 #   powershell -ExecutionPolicy Bypass -File packaging\windows\build.ps1
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..\..')
@@ -14,7 +14,12 @@ Write-Host '== python deps'
 $py = Join-Path $root 'server\.venv\Scripts\python.exe'
 if (-not (Test-Path $py)) { python -m venv server\.venv }
 & $py -m pip install --upgrade pip
-& $py -m pip install -r server\requirements.txt -r server\requirements-desktop.txt
+# Release builds use exact, tested versions (server\requirements.lock, refresh with pip freeze).
+if (Test-Path server\requirements.lock) { & $py -m pip install -r server\requirements.lock }
+else { & $py -m pip install -r server\requirements.txt -r server\requirements-desktop.txt }
+
+Write-Host '== licenses'
+& $py scripts\collect_licenses.py
 
 Write-Host '== icons'
 & $py scripts\make_icons.py
@@ -30,9 +35,9 @@ if ($iscc) {
     & $iscc packaging\windows\kursor.iss
     if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed' }
 } else {
-    Write-Warning 'Inno Setup 6 not found: only dist\Kursor\ was produced (winget install JRSoftware.InnoSetup)'
+    Write-Warning 'Inno Setup 6 not found: only dist\PadLink\ was produced (winget install JRSoftware.InnoSetup)'
 }
 
 # Code signing (strongly recommended, avoids SmartScreen warnings):
-#   signtool sign /fd sha256 /tr http://timestamp.digicert.com /td sha256 /a dist\Kursor\Kursor.exe dist\Kursor-Setup-*.exe
+#   signtool sign /fd sha256 /tr http://timestamp.digicert.com /td sha256 /a dist\PadLink\PadLink.exe dist\PadLink-Setup-*.exe
 Write-Host 'Done.'

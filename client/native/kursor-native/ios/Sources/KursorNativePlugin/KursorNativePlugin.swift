@@ -1,7 +1,7 @@
 import Capacitor
 import Foundation
 
-/// Native bridge used by the Kursor app (see client/src/lib/native.ts).
+/// Native bridge used by the PadLink app (see client/src/lib/native.ts).
 ///
 /// All traffic to the PC goes through here instead of the WebView so the PC's
 /// certificate can be pinned without installing any profile on the phone.

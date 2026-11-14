@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Kursor</string>
+        <string>PadLink</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -65,9 +65,9 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>La fotocamera serve solo a leggere il QR code di associazione mostrato da Kursor sul tuo PC. Nessuna immagine viene salvata o inviata.</string>
+	<string>La fotocamera serve solo a leggere il QR code di associazione mostrato da PadLink sul tuo PC. Nessuna immagine viene salvata o inviata.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Kursor si collega al tuo PC sulla rete Wi-Fi locale per controllarlo.</string>
+	<string>PadLink si collega al tuo PC sulla rete Wi-Fi locale per controllarlo.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSAppTransportSecurity</key>
