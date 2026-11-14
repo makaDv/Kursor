@@ -9,7 +9,7 @@ import { forgetSession, getAccessToken, refresh } from './api'
 import { wsUrl } from './platform'
 import { openSocket, type SocketLike } from './transport'
 
-export type SocketStatus = 'idle' | 'connecting' | 'open' | 'offline' | 'revoked' | 'untrusted'
+export type SocketStatus = 'idle' | 'connecting' | 'open' | 'offline' | 'paused' | 'revoked' | 'untrusted'
 
 export interface Monitor {
   index: number
@@ -80,9 +80,9 @@ export class KursorSocket {
     window.clearInterval(this.pingTimer)
   }
 
-  private scheduleRetry() {
+  private scheduleRetry(status: SocketStatus = 'offline') {
     if (this.stopped) return
-    this.setStatus('offline')
+    this.setStatus(status)
     window.clearTimeout(this.retryTimer)
     this.retryTimer = window.setTimeout(() => void this.connect(), this.backoff)
     this.backoff = Math.min(MAX_BACKOFF, this.backoff * 2)
@@ -159,6 +159,12 @@ export class KursorSocket {
       if (code === 4409) {
         forgetSession()
         this.setStatus('revoked')
+        return
+      }
+      if (code === 4423) {
+        // Paused from the PC window: keep retrying slowly until it is resumed.
+        this.backoff = MAX_BACKOFF
+        this.scheduleRetry('paused')
         return
       }
       if (code === 4401 || code === 4408) {

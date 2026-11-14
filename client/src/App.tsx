@@ -156,6 +156,7 @@ function StatusPill({ status }: { status: SocketStatus }) {
     connecting: ['bg-amber-400 animate-pulse', 'Connessione'],
     open: ['bg-emerald-400', 'Connesso'],
     offline: ['bg-red-500 animate-pulse', 'Offline'],
+    paused: ['bg-amber-400', 'In pausa sul PC'],
     revoked: ['bg-red-500', 'Revocato'],
     untrusted: ['bg-red-500', 'Non fidato'],
   }

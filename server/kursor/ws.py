@@ -86,11 +86,11 @@ async def authenticate(ws: WebSocket, channel: str) -> WsSession | None:
     if svc.guard.retry_after(ip):
         await ws.close(code=4429)
         return None
+    await ws.accept()
     if svc.paused:
+        # Accept first so the client receives the 4423 code and can show "paused".
         await ws.close(code=4423, reason="paused")
         return None
-
-    await ws.accept()
     try:
         text = await asyncio.wait_for(ws.receive_text(), timeout=AUTH_TIMEOUT)
     except asyncio.TimeoutError:
