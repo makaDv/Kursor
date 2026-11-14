@@ -1,0 +1,18 @@
+# Cloudflare Tunnel: copy to %USERPROFILE%\.cloudflared\config.yml (Windows)
+# or ~/.cloudflared/config.yml (Linux/macOS) and replace the placeholders.
+#
+# Kursor must run in tunnel mode, bound to loopback only:
+#   python -m kursor run --host 127.0.0.1 --port 8080 --no-tls \
+#       --public-origin https://kursor.example.com --trust-proxy
+
+tunnel: <TUNNEL-UUID>
+credentials-file: C:\Users\<you>\.cloudflared\<TUNNEL-UUID>.json
+
+ingress:
+  - hostname: kursor.example.com
+    service: http://127.0.0.1:8080
+    originRequest:
+      # Keep the public Host header so Kursor's Host allow-list matches.
+      httpHostHeader: kursor.example.com
+      noTLSVerify: false
+  - service: http_status:404
