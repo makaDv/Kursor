@@ -1,12 +1,21 @@
 @import 'tailwindcss';
 
+/*
+ * PadLink design tokens. The Windows program uses the same values
+ * (server/kursor/desktop.py: BG, CARD, CARD2, LINE, ACCENT, ACCENT2, GREEN, AMBER, RED),
+ * so the phone and the PC look like one product.
+ */
 @theme {
-  --color-ink-950: #0b0f17;
-  --color-ink-900: #111827;
-  --color-ink-800: #1a2232;
-  --color-ink-700: #263045;
-  --color-accent: #6366f1;
-  --color-accent-2: #06b6d4;
+  --color-ink-950: #0b0f17; /* background */
+  --color-ink-900: #121826; /* card */
+  --color-ink-800: #1b2333; /* raised / input */
+  --color-ink-700: #273145; /* border / pressed */
+  --color-accent: #6366f1; /* primary (indigo) */
+  --color-accent-2: #22d3ee; /* highlight (cyan) */
+  --color-ok: #10b981;
+  --color-warn: #f59e0b;
+  --color-bad: #ef4444;
+  --color-muted: #94a3b8;
 }
 
 html,
@@ -45,13 +54,49 @@ textarea {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* ---- surfaces ------------------------------------------------------------------- */
+.card {
+  @apply rounded-2xl border border-white/5 bg-ink-900;
+}
+.section-title {
+  @apply px-1 text-[11px] font-semibold tracking-wider text-muted uppercase;
+}
+.field {
+  @apply w-full rounded-xl border border-white/5 bg-ink-800 px-3 py-3 text-base text-gray-100 outline-none placeholder:text-gray-500 focus:border-accent focus:ring-2 focus:ring-accent/40;
+}
+.chip {
+  @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium;
+}
+
+/* ---- buttons -------------------------------------------------------------------- */
+.btn-primary {
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 font-semibold transition select-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 bg-accent text-white shadow-lg shadow-accent/25 active:bg-indigo-600;
+}
+.btn-secondary {
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 font-semibold transition select-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 bg-ink-800 text-gray-100 active:bg-ink-700;
+}
+.btn-danger {
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 font-semibold transition select-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 bg-red-500/15 text-red-300 active:bg-red-500/25;
+}
+.btn-ghost {
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 font-semibold transition select-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 bg-transparent text-accent-2 active:bg-white/5;
+}
+
+/* keys of the keyboard / trackpad panels */
 .key {
-  @apply flex items-center justify-center rounded-xl bg-ink-800 text-sm font-medium text-gray-200 active:scale-95 active:bg-ink-700 transition-transform select-none min-h-11 px-2;
+  @apply flex min-h-11 items-center justify-center rounded-xl border border-white/5 bg-ink-800 px-2 text-sm font-medium text-gray-200 transition-transform select-none active:scale-95 active:bg-ink-700;
 }
 .key-on {
-  @apply bg-accent text-white active:bg-accent;
+  @apply border-accent bg-accent text-white active:bg-accent;
+}
+
+.brand-glow {
+  filter: drop-shadow(0 6px 24px rgb(99 102 241 / 0.45));
 }
 
 input[type='range'] {
+  accent-color: var(--color-accent);
+}
+input[type='checkbox'] {
   accent-color: var(--color-accent);
 }

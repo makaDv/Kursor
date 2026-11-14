@@ -4,6 +4,7 @@ import { usePrefs } from '../lib/settings'
 import ConfirmDialog from './ConfirmDialog'
 import { Icon } from './Icon'
 import { APP_VERSION, LegalLinks } from './Legal'
+import SystemPanel from './SystemPanel'
 
 function ago(ts: number) {
   const s = Math.max(0, Date.now() / 1000 - ts)
@@ -48,8 +49,13 @@ export default function MorePanel({ onLoggedOut }: { onLoggedOut: () => void }) 
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-4 pb-8">
       <section className="flex flex-col gap-3">
-        <h2 className="text-xs uppercase tracking-wide text-gray-500">Trackpad</h2>
-        <div className="grid gap-4 rounded-2xl bg-ink-900 p-4 text-sm">
+        <h2 className="section-title">Computer</h2>
+        <SystemPanel />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="section-title">Trackpad</h2>
+        <div className="grid gap-4 card p-4 text-sm">
           <Range label={`Sensibilità: ${prefs.sensitivity.toFixed(1)}`} min={0.3} max={4} step={0.1}
             value={prefs.sensitivity} onChange={(v) => setPrefs({ sensitivity: v })} />
           <Range label={`Accelerazione: ${prefs.acceleration.toFixed(1)}`} min={0} max={3} step={0.1}
@@ -69,15 +75,15 @@ export default function MorePanel({ onLoggedOut }: { onLoggedOut: () => void }) 
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs uppercase tracking-wide text-gray-500">Dispositivi associati</h2>
+          <h2 className="section-title">Dispositivi associati</h2>
           <button className="text-xs text-accent-2" onClick={() => void load()}>
             Aggiorna
           </button>
         </div>
-        {error && <p className="rounded-xl bg-red-500/15 p-3 text-sm text-red-300">{error}</p>}
+        {error && <p className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">{error}</p>}
         <ul className="flex flex-col gap-2">
           {devices.map((d) => (
-            <li key={d.id} className="flex items-center gap-3 rounded-2xl bg-ink-900 p-4">
+            <li key={d.id} className="flex items-center gap-3 card p-4">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">
                   {d.name} {d.current && <span className="ml-1 rounded bg-accent/20 px-1.5 py-0.5 text-[10px] text-accent-2">questo</span>}
@@ -94,7 +100,7 @@ export default function MorePanel({ onLoggedOut }: { onLoggedOut: () => void }) 
         </ul>
       </section>
 
-      <button className="rounded-2xl bg-red-500/15 py-4 font-medium text-red-300" onClick={() => setConfirmLogout(true)}>
+      <button className="btn-danger" onClick={() => setConfirmLogout(true)}>
         Disconnetti questo dispositivo
       </button>
 

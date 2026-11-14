@@ -184,7 +184,7 @@ export default function KeyboardPanel({ socket }: { socket: KursorSocket }) {
       )}
 
       <section className="flex flex-col gap-2">
-        <h3 className="text-xs uppercase tracking-wide text-gray-500">Scorciatoie</h3>
+        <h3 className="section-title">Scorciatoie</h3>
         <div className="grid grid-cols-4 gap-2">
           {SHORTCUTS.map(([label, k]) => (
             <button key={label} className="key text-xs" onClick={() => keys(k)}>
@@ -195,7 +195,7 @@ export default function KeyboardPanel({ socket }: { socket: KursorSocket }) {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h3 className="text-xs uppercase tracking-wide text-gray-500">Multimedia</h3>
+        <h3 className="section-title">Multimedia</h3>
         <div className="grid grid-cols-6 gap-2">
           {MEDIA.map(([label, k]) => (
             <button key={k} className="key text-lg" onClick={() => keys([k])}>

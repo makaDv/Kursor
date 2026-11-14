@@ -28,22 +28,25 @@ export default function SystemPanel() {
   const current = ACTIONS.find((a) => a.id === pending)
 
   return (
-    <div className="flex h-full flex-col gap-3 overflow-y-auto p-4">
-      {ACTIONS.map((a) => (
-        <button
-          key={a.id}
-          onClick={() => setPending(a.id)}
-          className="flex items-center gap-4 rounded-2xl bg-ink-900 p-5 text-left active:bg-ink-800"
-        >
-          <span className={`flex h-12 w-12 items-center justify-center rounded-xl ${a.danger ? 'bg-red-500/15 text-red-400' : 'bg-accent/15 text-accent'}`}>
-            <Icon name={a.icon} className="h-6 w-6" />
-          </span>
-          <span className="flex flex-col">
-            <span className="font-semibold">{a.label}</span>
-            <span className="text-xs text-gray-400">{a.desc}</span>
-          </span>
-        </button>
-      ))}
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-3 gap-2">
+        {ACTIONS.map((a) => (
+          <button
+            key={a.id}
+            onClick={() => setPending(a.id)}
+            className="card flex flex-col items-center gap-2 px-2 py-4 text-sm font-medium active:bg-ink-800"
+          >
+            <span
+              className={`flex h-11 w-11 items-center justify-center rounded-xl ${
+                a.danger ? 'bg-red-500/15 text-red-400' : 'bg-accent/15 text-accent-2'
+              }`}
+            >
+              <Icon name={a.icon} className="h-5 w-5" />
+            </span>
+            {a.label}
+          </button>
+        ))}
+      </div>
       {message && (
         <p className={`rounded-xl p-3 text-center text-sm ${message.ok ? 'bg-emerald-500/15 text-emerald-300' : 'bg-red-500/15 text-red-300'}`}>
           {message.text}

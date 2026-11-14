@@ -31,15 +31,6 @@ APP_NAME = "PadLink"
 CONSENT_VERSION = 1
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
-BG = "#0b0f17"
-CARD = "#141a26"
-FG = "#e5e7eb"
-MUTED = "#9ca3af"
-ACCENT = "#6366f1"
-GREEN = "#10b981"
-RED = "#ef4444"
-
-
 # ---- environment -----------------------------------------------------------------------
 def _fix_std_streams() -> None:
     # A windowed (no console) executable has no stdout/stderr.
@@ -76,6 +67,64 @@ class SingleInstance:
         if sys.platform == "win32":
             self.handle = ctypes.windll.kernel32.CreateMutexW(None, False, "Local\\KursorDesktopSingleton")
             self.already_running = ctypes.windll.kernel32.GetLastError() == 183  # ERROR_ALREADY_EXISTS
+
+
+# Design tokens shared with the phone app (client/src/index.css).
+BG = "#0b0f17"        # ink-950
+CARD = "#121826"      # ink-900
+CARD2 = "#1b2333"     # ink-800
+LINE = "#273145"      # ink-700
+FG = "#e5e7eb"
+MUTED = "#94a3b8"
+ACCENT = "#6366f1"
+ACCENT_HOVER = "#4f46e5"
+ACCENT2 = "#22d3ee"
+GREEN = "#10b981"
+AMBER = "#f59e0b"
+RED = "#ef4444"
+FONT = "Segoe UI"
+FONT_TITLE = "Segoe UI Semibold"
+FONT_MONO = "Consolas"
+
+_BUTTON_KINDS = {
+    #            bg        fg        hover
+    "primary": (ACCENT, "#ffffff", ACCENT_HOVER),
+    "secondary": (CARD2, FG, LINE),
+    "danger": ("#3a1f27", "#fca5a5", "#4c2430"),
+    "warn": ("#3b2f12", "#fcd34d", "#4a3a16"),
+    "ghost": (CARD, MUTED, CARD2),
+}
+
+
+def _button(parent: Any, text: str, command: Callable[[], None], kind: str = "secondary") -> tk.Button:
+    bg, fg, hover = _BUTTON_KINDS[kind]
+    return tk.Button(parent, text=text, command=command, bg=bg, fg=fg, activebackground=hover,
+                     activeforeground=fg, relief="flat", bd=0, highlightthickness=0, cursor="hand2",
+                     font=(FONT, 10, "bold" if kind in ("primary", "warn") else "normal"), padx=14, pady=7)
+
+
+def _restyle(button: tk.Button, text: str, kind: str) -> None:
+    bg, fg, hover = _BUTTON_KINDS[kind]
+    button.configure(text=text, bg=bg, fg=fg, activebackground=hover, activeforeground=fg,
+                     font=(FONT, 10, "bold" if kind in ("primary", "warn") else "normal"))
+
+
+def _link(parent: Any, text: str, command: Callable[[], None]) -> tk.Label:
+    lbl = tk.Label(parent, text=text, bg=BG, fg=MUTED, font=(FONT, 9, "underline"), cursor="hand2")
+    lbl.bind("<Button-1>", lambda _e: command())
+    lbl.bind("<Enter>", lambda _e: lbl.configure(fg=ACCENT2))
+    lbl.bind("<Leave>", lambda _e: lbl.configure(fg=MUTED))
+    return lbl
+
+
+def _logo_photo(size: int) -> Any:
+    try:
+        from PIL import Image, ImageTk
+
+        with Image.open(_assets() / "tray.png") as img:
+            return ImageTk.PhotoImage(img.convert("RGBA").resize((size, size), Image.Resampling.LANCZOS))
+    except Exception:  # noqa: BLE001 - cosmetic only
+        return None
 
 
 # ---- autostart (HKCU, opt-in) -------------------------------------------------------------
@@ -178,7 +227,7 @@ class DesktopApp:
         self.root.title(APP_NAME)
         self.root.configure(bg=BG)
         # No fixed geometry: Tk sizes the window to its content, which scales with Windows DPI.
-        self.root.minsize(400, 500)
+        self.root.minsize(560, 520)
         ico = _assets() / "kursor.ico"
         if ico.exists():
             self.root.iconbitmap(default=str(ico))
@@ -198,83 +247,133 @@ class DesktopApp:
             self.new_pairing()  # first launch: nothing paired yet, show the QR right away
         self.root.after(200, self._tick)
 
-    # -- layout --
+    # -- layout --------------------------------------------------------------------------
+    # Same design tokens as the phone app (client/src/index.css): ink surfaces, indigo
+    # accent, cyan highlights, green/amber/red states, rounded "cards" with a thin border.
     def _style(self) -> None:
         st = ttk.Style(self.root)
         st.theme_use("clam")
-        st.configure("TFrame", background=BG)
-        st.configure("Card.TFrame", background=CARD)
-        st.configure("TLabel", background=BG, foreground=FG, font=("Segoe UI", 10))
-        st.configure("Card.TLabel", background=CARD, foreground=FG)
-        st.configure("Muted.TLabel", background=CARD, foreground=MUTED, font=("Segoe UI", 9))
-        st.configure("Title.TLabel", background=BG, foreground=FG, font=("Segoe UI Semibold", 16))
-        st.configure("Pin.TLabel", background=CARD, foreground=FG, font=("Consolas", 26, "bold"))
-        st.configure("Code.TLabel", background=CARD, foreground="#22d3ee", font=("Consolas", 12, "bold"))
-        st.configure("TButton", font=("Segoe UI", 10), padding=8, background="#1f2937", foreground=FG,
-                     borderwidth=0)
-        st.map("TButton", background=[("active", "#374151")])
-        st.configure("Accent.TButton", background=ACCENT, foreground="white")
-        st.map("Accent.TButton", background=[("active", "#4f46e5")])
-        st.configure("TCheckbutton", background=BG, foreground=FG, font=("Segoe UI", 10))
-        st.map("TCheckbutton", background=[("active", BG)])
+        st.configure("PL.Horizontal.TProgressbar", troughcolor=CARD2, background=ACCENT, bordercolor=CARD2,
+                     lightcolor=ACCENT, darkcolor=ACCENT, thickness=6)
+        st.configure("PL.Vertical.TScrollbar", troughcolor=CARD, background=CARD2, bordercolor=CARD,
+                     arrowcolor=MUTED, lightcolor=CARD2, darkcolor=CARD2)
+
+    def _card(self, parent: Any, **pack: Any) -> tk.Frame:
+        card = tk.Frame(parent, bg=CARD, highlightthickness=1, highlightbackground=LINE, highlightcolor=LINE)
+        card.pack(fill="x", **pack)
+        return card
+
+    def _section(self, text: str) -> tk.Label:
+        lbl = tk.Label(self.body, text=text.upper(), bg=BG, fg=MUTED, font=(FONT, 8, "bold"), anchor="w")
+        lbl.pack(fill="x", pady=(16, 6))
+        return lbl
 
     def _build(self) -> None:
-        pad = {"padx": 16}
-        top = ttk.Frame(self.root)
-        top.pack(fill="x", pady=(14, 6), **pad)
-        ttk.Label(top, text="PadLink", style="Title.TLabel").pack(side="left")
-        self.status = ttk.Label(top, text="", foreground=MUTED)
-        self.status.pack(side="right")
+        self.body = tk.Frame(self.root, bg=BG)
+        self.body.pack(fill="both", expand=True, padx=20, pady=(16, 14))
 
-        # Control banner: always says whether someone is controlling this PC.
-        self.banner = tk.Frame(self.root, bg=CARD)
-        self.banner.pack(fill="x", pady=6, **pad)
-        self.banner_dot = tk.Label(self.banner, text="●", bg=CARD, fg=MUTED, font=("Segoe UI", 14))
-        self.banner_dot.pack(side="left", padx=(12, 6), pady=10)
-        self.banner_text = tk.Label(self.banner, text="", bg=CARD, fg=FG, font=("Segoe UI", 10), anchor="w",
-                                    justify="left", wraplength=250)
-        self.banner_text.pack(side="left", fill="x", expand=True)
-        self.pause_btn = ttk.Button(self.banner, text="Pausa", command=self.toggle_pause)
-        self.pause_btn.pack(side="right", padx=10)
+        # Header: logo, name, tagline, live listening address.
+        head = tk.Frame(self.body, bg=BG)
+        head.pack(fill="x")
+        self.logo_photo = _logo_photo(40)
+        if self.logo_photo is not None:
+            tk.Label(head, image=self.logo_photo, bg=BG).pack(side="left", padx=(0, 12))
+        names = tk.Frame(head, bg=BG)
+        names.pack(side="left")
+        tk.Label(names, text="PadLink", bg=BG, fg=FG, font=(FONT_TITLE, 17)).pack(anchor="w")
+        tk.Label(names, text="Controlla questo PC dal telefono", bg=BG, fg=MUTED, font=(FONT, 9)).pack(anchor="w")
+        self.listen_lbl = tk.Label(head, text="", bg=BG, fg=MUTED, font=(FONT, 9))
+        self.listen_lbl.pack(side="right", anchor="n", pady=(4, 0))
 
-        # Pairing card
-        self.pair_card = ttk.Frame(self.root, style="Card.TFrame")
-        self.pair_card.pack(fill="x", pady=6, **pad)
-        self.qr_label = tk.Label(self.pair_card, bg=CARD)
-        self.pin_label = ttk.Label(self.pair_card, style="Pin.TLabel")
-        self.code_label = ttk.Label(self.pair_card, style="Code.TLabel")
-        self.addr_label = ttk.Label(self.pair_card, style="Code.TLabel")
-        self.pair_info = ttk.Label(self.pair_card, style="Muted.TLabel", wraplength=380, justify="center")
-        self.pair_btn = ttk.Button(self.pair_card, text="Associa un nuovo telefono", style="Accent.TButton",
-                                   command=self.new_pairing)
-        self.cancel_btn = ttk.Button(self.pair_card, text="Chiudi associazione", command=self.close_pairing)
+        # Status card: always says whether someone is controlling this PC.
+        self.status_card = self._card(self.body, pady=(16, 0))
+        self.status_stripe = tk.Frame(self.status_card, bg=MUTED, width=4)
+        self.status_stripe.pack(side="left", fill="y")
+        inner = tk.Frame(self.status_card, bg=CARD)
+        inner.pack(side="left", fill="both", expand=True, padx=14, pady=12)
+        self.status_title = tk.Label(inner, text="", bg=CARD, fg=FG, font=(FONT, 11, "bold"), anchor="w")
+        self.status_title.pack(fill="x")
+        self.status_sub = tk.Label(inner, text="", bg=CARD, fg=MUTED, font=(FONT, 9), anchor="w", justify="left",
+                                   wraplength=330)
+        self.status_sub.pack(fill="x")
+        self.pause_btn = _button(self.status_card, "Pausa", self.toggle_pause, "secondary")
+        self.pause_btn.pack(side="right", padx=14)
+
+        # Pairing
+        self._section("Associa un telefono")
+        self.pair_card = self._card(self.body)
+        self.pair_idle = tk.Frame(self.pair_card, bg=CARD)
+        tk.Label(self.pair_idle, text="Installa l'app PadLink sul telefono, poi premi il pulsante:\n"
+                                      "comparirà un QR code da inquadrare.", bg=CARD, fg=MUTED,
+                 font=(FONT, 10), justify="left", anchor="w").pack(side="left", padx=16, pady=16)
+        _button(self.pair_idle, "Associa un telefono", self.new_pairing, "primary").pack(side="right", padx=16)
+
+        self.pair_active = tk.Frame(self.pair_card, bg=CARD)
+        self.qr_label = tk.Label(self.pair_active, bg="white", bd=0)
+        self.qr_label.pack(side="left", padx=16, pady=16)
+        info = tk.Frame(self.pair_active, bg=CARD)
+        info.pack(side="left", fill="both", expand=True, pady=16, padx=(0, 16))
+        for n, text in ((1, "Apri l'app PadLink"), (2, "Tocca «Scansiona il QR code»"), (3, "Inquadra questo codice")):
+            row = tk.Frame(info, bg=CARD)
+            row.pack(fill="x", pady=1)
+            tk.Label(row, text=str(n), bg=CARD2, fg=ACCENT2, font=(FONT, 9, "bold"), width=2).pack(side="left")
+            tk.Label(row, text=text, bg=CARD, fg=FG, font=(FONT, 10)).pack(side="left", padx=8)
+        tk.Label(info, text="Senza fotocamera usa questi dati:", bg=CARD, fg=MUTED, font=(FONT, 9),
+                 anchor="w").pack(fill="x", pady=(10, 2))
+        self.pin_value = self._kv(info, "PIN", (FONT_MONO, 18, "bold"), FG)
+        self.addr_value = self._kv(info, "Indirizzo", (FONT_MONO, 10, "bold"), ACCENT2)
+        self.code_value = self._kv(info, "Verifica", (FONT_MONO, 10, "bold"), ACCENT2)
+        self.progress = ttk.Progressbar(info, style="PL.Horizontal.TProgressbar", maximum=1.0)
+        self.progress.pack(fill="x", pady=(10, 2))
+        foot = tk.Frame(info, bg=CARD)
+        foot.pack(fill="x")
+        self.expiry_lbl = tk.Label(foot, text="", bg=CARD, fg=MUTED, font=(FONT, 9))
+        self.expiry_lbl.pack(side="left")
+        _button(foot, "Annulla", self.close_pairing, "ghost").pack(side="right")
         self._render_pairing(None)
 
         # Devices
-        ttk.Label(self.root, text="Dispositivi associati", foreground=MUTED).pack(anchor="w", pady=(12, 2), **pad)
-        dev = ttk.Frame(self.root, style="Card.TFrame")
-        dev.pack(fill="both", expand=True, pady=4, **pad)
-        self.dev_list = tk.Listbox(dev, bg=CARD, fg=FG, selectbackground=ACCENT, borderwidth=0,
-                                   highlightthickness=0, font=("Segoe UI", 10), activestyle="none", height=5)
-        self.dev_list.pack(fill="both", expand=True, padx=8, pady=8)
-        ttk.Button(dev, text="Revoca il dispositivo selezionato", command=self.revoke_selected).pack(
-            fill="x", padx=8, pady=(0, 8))
-        self.dev_ids: list[str] = []
+        self.dev_title = self._section("Dispositivi associati")
+        dev_card = self._card(self.body)
+        self.dev_canvas = tk.Canvas(dev_card, bg=CARD, highlightthickness=0, bd=0, height=60)
+        self.dev_scroll = ttk.Scrollbar(dev_card, orient="vertical", command=self.dev_canvas.yview,
+                                        style="PL.Vertical.TScrollbar")
+        self.dev_canvas.configure(yscrollcommand=self.dev_scroll.set)
+        self.dev_canvas.pack(side="left", fill="both", expand=True)
+        self.dev_rows = tk.Frame(self.dev_canvas, bg=CARD)
+        self.dev_window = self.dev_canvas.create_window(0, 0, window=self.dev_rows, anchor="nw")
+        self.dev_canvas.bind("<Configure>", lambda e: self.dev_canvas.itemconfigure(self.dev_window, width=e.width))
+        self.dev_canvas.bind("<MouseWheel>", lambda e: self.dev_canvas.yview_scroll(int(-e.delta / 120), "units"))
 
         # Footer
-        foot = ttk.Frame(self.root)
-        foot.pack(fill="x", pady=(6, 12), **pad)
+        foot = tk.Frame(self.body, bg=BG)
+        foot.pack(fill="x", pady=(16, 0))
         self.autostart_var = tk.BooleanVar(value=autostart_enabled())
-        ttk.Checkbutton(foot, text="Avvia PadLink all'accesso a Windows", variable=self.autostart_var,
-                        command=self._toggle_autostart).pack(anchor="w")
-        links = ttk.Frame(foot)
-        links.pack(fill="x", pady=(8, 0))
-        for text, cmd in (("Privacy", lambda: self.show_doc("PRIVACY.md", "Privacy")),
-                          ("Termini", lambda: self.show_doc("TERMS.md", "Termini d'uso")),
-                          ("Licenze", lambda: self.show_doc("licenses/windows-third-party.txt", "Licenze open source")),
-                          ("Registro accessi", self.open_logs),
-                          ("Esci", self.quit)):
-            ttk.Button(links, text=text, command=cmd).pack(side="left", padx=(0, 6))
+        tk.Checkbutton(foot, text="Avvia PadLink all'accesso a Windows", variable=self.autostart_var,
+                       command=self._toggle_autostart, bg=BG, fg=FG, selectcolor=CARD2, activebackground=BG,
+                       activeforeground=FG, font=(FONT, 9), bd=0, highlightthickness=0).pack(side="left")
+        _button(foot, "Esci", self.quit, "secondary").pack(side="right")
+        links = tk.Frame(self.body, bg=BG)
+        links.pack(fill="x", pady=(10, 0))
+        for i, (text, cmd) in enumerate((
+                ("Privacy", lambda: self.show_doc("PRIVACY.md", "Privacy")),
+                ("Termini", lambda: self.show_doc("TERMS.md", "Termini d'uso")),
+                ("Licenze", lambda: self.show_doc("licenses/windows-third-party.txt", "Licenze open source")),
+                ("Registro accessi", self.open_logs))):
+            if i:
+                tk.Label(links, text="·", bg=BG, fg=LINE, font=(FONT, 9)).pack(side="left", padx=4)
+            _link(links, text, cmd).pack(side="left")
+        from . import __version__
+
+        tk.Label(links, text=f"v{__version__}", bg=BG, fg=LINE, font=(FONT, 8)).pack(side="right")
+
+    def _kv(self, parent: Any, key: str, font: tuple, color: str) -> tk.Label:
+        row = tk.Frame(parent, bg=CARD)
+        row.pack(fill="x")
+        tk.Label(row, text=key, bg=CARD, fg=MUTED, font=(FONT, 9), width=9, anchor="w").pack(side="left")
+        val = tk.Label(row, text="", bg=CARD, fg=color, font=font, anchor="w")
+        val.pack(side="left")
+        return val
 
     # -- pairing --
     def new_pairing(self) -> None:
@@ -287,55 +386,46 @@ class DesktopApp:
         self._render_pairing(None)
 
     def _render_pairing(self, session: Any) -> None:
-        for w in (self.qr_label, self.pin_label, self.addr_label, self.code_label, self.pair_info, self.pair_btn,
-                  self.cancel_btn):
-            w.pack_forget()
+        self.pair_idle.pack_forget()
+        self.pair_active.pack_forget()
         if session is None:
             self.session_expires = None
-            self.pair_info.configure(text="Per collegare un telefono installa l'app PadLink (o apri il browser) "
-                                          "e premi il pulsante qui sotto.")
-            self.pair_info.pack(pady=(14, 8), padx=12)
-            self.pair_btn.pack(pady=(0, 14))
+            self.pair_idle.pack(fill="x")
             return
 
         import qrcode
         from PIL import ImageTk
 
-        from .pairinfo import current_verification_code, pairing_url
+        from .pairinfo import base_url, current_verification_code, pairing_url
 
-        url = pairing_url(self.settings, session.code)
-        img = qrcode.make(url, box_size=6, border=2).get_image().convert("RGB")
+        img = qrcode.make(pairing_url(self.settings, session.code), box_size=5, border=2).get_image().convert("RGB")
         self.qr_photo = ImageTk.PhotoImage(img)
         self.qr_label.configure(image=self.qr_photo)
-        self.qr_label.pack(pady=(14, 6))
-        self.pin_label.configure(text=f"{session.pin[:3]} {session.pin[3:]}")
-        self.pin_label.pack()
-        from .pairinfo import base_url
-
-        self.addr_label.configure(text=f"Indirizzo del PC  {base_url(self.settings).split('://', 1)[-1]}")
-        self.addr_label.pack(pady=(2, 0))
-        verify = current_verification_code(self.settings)
-        if verify:
-            self.code_label.configure(text=f"Codice di verifica  {verify}")
-            self.code_label.pack(pady=(2, 4))
+        self.pin_value.configure(text=f"{session.pin[:3]} {session.pin[3:]}")
+        self.addr_value.configure(text=base_url(self.settings).split("://", 1)[-1])
+        self.code_value.configure(text=current_verification_code(self.settings) or "—")
         self.session_expires = session.expires_at
-        self.pair_info.pack(pady=(2, 6), padx=12)
-        self.cancel_btn.pack(pady=(0, 14))
+        self.session_ttl = max(1.0, session.expires_at - time.time())
+        self.pair_active.pack(fill="x")
         self._update_countdown()
 
     def _update_countdown(self) -> None:
         if self.session_expires is None:
             return
         left = int(self.session_expires - time.time())
-        active = self.svc.pairing.active_until()
-        if left <= 0 or active is None:
+        if left <= 0 or self.svc.pairing.active_until() is None:
             self._render_pairing(None)  # expired or already used: never leave a stale QR on screen
             return
-        self.pair_info.configure(
-            text=f"Inquadra il QR con l'app PadLink, oppure inserisci indirizzo e PIN.\n"
-                 f"Valido ancora {left // 60}:{left % 60:02d} · monouso · non condividerlo")
+        self.progress.configure(value=left / self.session_ttl)
+        self.expiry_lbl.configure(text=f"Scade tra {left // 60}:{left % 60:02d} · monouso")
 
     # -- devices / status --
+    def _set_status(self, color: str, title: str, sub: str, pause_text: str, pause_kind: str) -> None:
+        self.status_stripe.configure(bg=color)
+        self.status_title.configure(text=title, fg=color if color != MUTED else FG)
+        self.status_sub.configure(text=sub)
+        _restyle(self.pause_btn, pause_text, pause_kind)
+
     def _refresh(self) -> None:
         devices = self.svc.store.list()
         names = {d.id: d.name for d in devices}
@@ -344,40 +434,62 @@ class DesktopApp:
         for dev_id in connected - self.connected:
             self._notify(f"{names.get(dev_id, 'Un dispositivo')} sta controllando questo PC")
         self.connected = connected
-        viewers = {d for d, n in list(self.svc.screen_viewers.items()) if n > 0}
-        for dev_id in viewers - self.viewers:
-            self._notify(f"{names.get(dev_id, 'Un dispositivo')} sta guardando il tuo schermo")
-        self.viewers = viewers
 
         if self.svc.paused:
-            self.banner_dot.configure(fg=RED)
-            self.banner_text.configure(text="Controllo in PAUSA: nessun telefono può controllare il PC.")
-            self.pause_btn.configure(text="Riprendi")
+            self._set_status(AMBER, "Controllo in pausa",
+                             "Nessun telefono può controllare il PC finché non riprendi.", "Riprendi", "warn")
         elif connected:
             who = ", ".join(sorted(names.get(i, "?") for i in connected))
-            self.banner_dot.configure(fg=GREEN)
-            watching = ", ".join(sorted(names.get(i, "?") for i in viewers))
-            self.banner_text.configure(text=f"Controllato ora da: {who}"
-                                       + (f"\nSta guardando lo schermo: {watching}" if watching else ""))
-            self.pause_btn.configure(text="Pausa")
+            self._set_status(GREEN, f"Controllato ora da {who}",
+                             "Puoi mettere in pausa o revocare l'accesso in qualsiasi momento.", "Pausa", "secondary")
         else:
-            self.banner_dot.configure(fg=MUTED)
-            self.banner_text.configure(text="Nessun dispositivo connesso.")
-            self.pause_btn.configure(text="Pausa")
+            self._set_status(MUTED, "Nessun telefono connesso",
+                             "I telefoni associati possono collegarsi quando vogliono." if devices
+                             else "Associa un telefono per iniziare.", "Pausa", "secondary")
+
+        from .pairinfo import base_url
+
+        self.listen_lbl.configure(text=f"● In ascolto su {base_url(self.settings).split('://', 1)[-1]}",
+                                  fg=AMBER if self.svc.paused else GREEN)
 
         sig = tuple((d.id, d.name, int(d.last_seen) // 60, d.id in connected) for d in devices)
         if sig != self.devices_sig:
             self.devices_sig = sig
-            self.dev_list.delete(0, "end")
-            self.dev_ids = [d.id for d in devices]
-            for d in devices:
-                live = "  ● connesso" if d.id in connected else ""
-                self.dev_list.insert("end", f"{d.name}  ·  ultimo accesso {_ago(d.last_seen)}{live}")
-            if not devices:
-                self.dev_list.insert("end", "Nessun dispositivo associato.")
-
-        self.status.configure(text=f"{len(devices)} associati")
+            self._render_devices(devices, connected)
         self._update_tray(bool(connected) and not self.svc.paused)
+
+    def _render_devices(self, devices: list, connected: set[str]) -> None:
+        for child in self.dev_rows.winfo_children():
+            child.destroy()
+        self.dev_title.configure(text=f"DISPOSITIVI ASSOCIATI ({len(devices)})")
+        if not devices:
+            tk.Label(self.dev_rows, text="Nessun dispositivo associato.", bg=CARD, fg=MUTED,
+                     font=(FONT, 10)).pack(anchor="w", padx=16, pady=16)
+        for i, d in enumerate(devices):
+            if i:
+                tk.Frame(self.dev_rows, bg=LINE, height=1).pack(fill="x", padx=16)
+            row = tk.Frame(self.dev_rows, bg=CARD)
+            row.pack(fill="x", padx=16, pady=10)
+            text = tk.Frame(row, bg=CARD)
+            text.pack(side="left", fill="x", expand=True)
+            top = tk.Frame(text, bg=CARD)
+            top.pack(fill="x")
+            tk.Label(top, text=d.name, bg=CARD, fg=FG, font=(FONT, 10, "bold")).pack(side="left")
+            if d.id in connected:
+                tk.Label(top, text="● connesso", bg=CARD, fg=GREEN, font=(FONT, 9)).pack(side="left", padx=8)
+            tk.Label(text, text=f"Ultimo accesso {_ago(d.last_seen)}", bg=CARD, fg=MUTED,
+                     font=(FONT, 9)).pack(anchor="w")
+            _button(row, "Revoca", lambda dev_id=d.id, name=d.name: self.revoke(dev_id, name), "danger").pack(
+                side="right")
+        self.dev_rows.update_idletasks()
+        height = min(self.dev_rows.winfo_reqheight(), 230)
+        self.dev_canvas.configure(height=height, scrollregion=(0, 0, 0, self.dev_rows.winfo_reqheight()))
+        if self.dev_rows.winfo_reqheight() > 230:
+            self.dev_scroll.pack(side="right", fill="y")
+        else:
+            self.dev_scroll.pack_forget()
+        for w in [self.dev_rows, *self.dev_rows.winfo_children()]:
+            w.bind("<MouseWheel>", lambda e: self.dev_canvas.yview_scroll(int(-e.delta / 120), "units"))
 
     def _tick(self) -> None:
         while True:
@@ -402,12 +514,7 @@ class DesktopApp:
         for dev_id in device_ids:
             asyncio.run_coroutine_threadsafe(self.svc.registry.close_device(dev_id, code, reason), loop)
 
-    def revoke_selected(self) -> None:
-        sel = self.dev_list.curselection()
-        if not sel or sel[0] >= len(self.dev_ids):
-            return
-        dev_id = self.dev_ids[sel[0]]
-        name = next((d.name for d in self.svc.store.list() if d.id == dev_id), dev_id)
+    def revoke(self, dev_id: str, name: str) -> None:
         if not messagebox.askyesno(APP_NAME, f'Revocare "{name}"?\nNon potrà più controllare il PC '
                                              f"finché non verrà associato di nuovo."):
             return
@@ -442,7 +549,8 @@ class DesktopApp:
         win = tk.Toplevel(self.root, bg=BG)
         win.title(f"{APP_NAME} · {title}")
         win.geometry("620x640")
-        box = tk.Text(win, wrap="word", bg=CARD, fg=FG, font=("Segoe UI", 10), borderwidth=0, padx=14, pady=12)
+        box = tk.Text(win, wrap="word", bg=CARD, fg=FG, font=(FONT, 10), borderwidth=0, padx=18, pady=14,
+                      highlightthickness=1, highlightbackground=LINE, relief="flat")
         box.insert("1.0", text)
         box.configure(state="disabled")
         box.pack(fill="both", expand=True, padx=10, pady=10)
@@ -529,37 +637,59 @@ def ensure_consent(settings: Any) -> bool:
     root = tk.Tk()
     root.title(f"{APP_NAME} · Benvenuto")
     root.configure(bg=BG)
-    root.geometry("560x520")
+    root.resizable(False, False)
     ico = _assets() / "kursor.ico"
     if ico.exists():
         root.iconbitmap(default=str(ico))
     accepted = tk.BooleanVar(value=False)
-    text = (
-        "PadLink permette di controllare questo PC (mouse, tastiera, schermo, blocco e spegnimento) "
-        "da uno smartphone associato.\n\n"
-        "• Usalo solo su computer tuoi o che sei autorizzato a gestire. Installarlo sul PC di altre persone "
-        "senza il loro consenso è vietato e può costituire reato.\n"
-        "• Chi possiede un telefono associato può controllare il PC: non condividere PIN o QR e revoca subito "
-        "i dispositivi persi.\n"
-        "• Quando un telefono è connesso l'icona nell'area di notifica diventa verde e compare un avviso. "
-        "Puoi mettere in pausa il controllo in qualsiasi momento.\n"
-        "• PadLink non raccoglie dati: tutto resta fra il PC e i tuoi dispositivi, in connessione cifrata.\n\n"
-        "Proseguendo accetti i Termini d'uso e l'Informativa privacy (consultabili anche dopo, dalla finestra di PadLink)."
+    body = tk.Frame(root, bg=BG)
+    body.pack(fill="both", expand=True, padx=24, pady=20)
+
+    head = tk.Frame(body, bg=BG)
+    head.pack(fill="x")
+    logo = _logo_photo(44)
+    if logo is not None:
+        tk.Label(head, image=logo, bg=BG).pack(side="left", padx=(0, 12))
+    names = tk.Frame(head, bg=BG)
+    names.pack(side="left")
+    tk.Label(names, text="Benvenuto in PadLink", bg=BG, fg=FG, font=(FONT_TITLE, 16)).pack(anchor="w")
+    tk.Label(names, text="Controlla questo PC dal tuo telefono, in modo sicuro.", bg=BG, fg=MUTED,
+             font=(FONT, 9)).pack(anchor="w")
+
+    card = tk.Frame(body, bg=CARD, highlightthickness=1, highlightbackground=LINE)
+    card.pack(fill="x", pady=(18, 0))
+    points = (
+        (ACCENT2, "Cosa fa", "Mouse, tastiera, schermo, app aperte, blocco e spegnimento del PC, dal telefono associato."),
+        (AMBER, "Solo PC tuoi", "Usalo solo su computer tuoi o che sei autorizzato a gestire. Installarlo sul PC di altri "
+                                "senza consenso è vietato e può costituire reato."),
+        (GREEN, "Sempre visibile", "Quando un telefono è connesso l'icona vicino all'orologio diventa verde e compare un "
+                                   "avviso. Puoi mettere in pausa o revocare l'accesso quando vuoi."),
+        (ACCENT, "Privato", "Nessun account e nessun dato raccolto: tutto resta fra il PC e i tuoi dispositivi, cifrato."),
     )
-    tk.Label(root, text="Benvenuto in PadLink", bg=BG, fg=FG, font=("Segoe UI Semibold", 16)).pack(
-        anchor="w", padx=20, pady=(18, 8))
-    tk.Label(root, text=text, bg=BG, fg=FG, font=("Segoe UI", 10), justify="left", wraplength=510).pack(
-        anchor="w", padx=20)
-    btns = tk.Frame(root, bg=BG)
-    btns.pack(side="bottom", fill="x", padx=20, pady=18)
+    for i, (color, title, desc) in enumerate(points):
+        if i:
+            tk.Frame(card, bg=LINE, height=1).pack(fill="x", padx=16)
+        row = tk.Frame(card, bg=CARD)
+        row.pack(fill="x", padx=16, pady=10)
+        tk.Label(row, text="●", bg=CARD, fg=color, font=(FONT, 11)).pack(side="left", anchor="n", padx=(0, 10))
+        col = tk.Frame(row, bg=CARD)
+        col.pack(side="left", fill="x", expand=True)
+        tk.Label(col, text=title, bg=CARD, fg=FG, font=(FONT, 10, "bold"), anchor="w").pack(fill="x")
+        tk.Label(col, text=desc, bg=CARD, fg=MUTED, font=(FONT, 9), anchor="w", justify="left",
+                 wraplength=440).pack(fill="x")
+
+    tk.Label(body, text="Proseguendo accetti i Termini d'uso e l'Informativa privacy, consultabili in ogni momento "
+                        "dalla finestra di PadLink.", bg=BG, fg=MUTED, font=(FONT, 9), justify="left",
+             wraplength=480, anchor="w").pack(fill="x", pady=(14, 0))
+    btns = tk.Frame(body, bg=BG)
+    btns.pack(fill="x", pady=(16, 0))
 
     def accept() -> None:
         accepted.set(True)
         root.destroy()
 
-    tk.Button(btns, text="Accetto e continuo", command=accept, bg=ACCENT, fg="white", relief="flat",
-              font=("Segoe UI", 10, "bold"), padx=14, pady=6).pack(side="right")
-    tk.Button(btns, text="Esci", command=root.destroy, relief="flat", padx=14, pady=6).pack(side="right", padx=8)
+    _button(btns, "Accetto e continuo", accept, "primary").pack(side="right")
+    _button(btns, "Esci", root.destroy, "secondary").pack(side="right", padx=8)
     root.mainloop()
 
     if accepted.get():

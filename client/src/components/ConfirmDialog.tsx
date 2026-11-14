@@ -45,15 +45,15 @@ export default function ConfirmDialog(props: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center" onClick={props.onCancel}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center" onClick={props.onCancel}>
       <div
         role="dialog"
         aria-modal="true"
-        className="safe-bottom w-full max-w-sm rounded-3xl bg-ink-900 p-6 shadow-2xl"
+        className="safe-bottom w-full max-w-sm rounded-3xl border border-white/10 bg-ink-900 p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold">{props.title}</h2>
-        <p className="mt-2 text-sm text-gray-400">{props.message}</p>
+        <p className="mt-2 text-sm text-muted">{props.message}</p>
         <button
           className={`relative mt-6 h-14 w-full overflow-hidden rounded-2xl font-semibold text-white ${
             props.danger ? 'bg-red-900/60' : 'bg-indigo-900/60'
@@ -71,7 +71,7 @@ export default function ConfirmDialog(props: {
           />
           <span className="relative">Tieni premuto: {props.confirmLabel}</span>
         </button>
-        <button className="mt-3 h-12 w-full rounded-2xl bg-ink-800 text-gray-300" onClick={props.onCancel}>
+        <button className="btn-secondary mt-3 w-full" onClick={props.onCancel}>
           Annulla
         </button>
       </div>

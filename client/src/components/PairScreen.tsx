@@ -148,7 +148,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
         <p className="max-w-xs text-sm text-gray-400">
           Controlla che nella finestra di PadLink sul PC compaia <b>esattamente</b> questo codice di verifica:
         </p>
-        <p className="rounded-2xl bg-ink-800 px-5 py-4 font-mono text-2xl tracking-wider text-accent-2">
+        <p className="card px-5 py-4 font-mono text-2xl tracking-wider text-accent-2">
           {verificationCode(verify.cfg.pin!)}
         </p>
         <p className="max-w-xs text-xs text-gray-500">
@@ -156,7 +156,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
         </p>
         <div className="flex w-full max-w-xs flex-col gap-3">
           <button
-            className="rounded-2xl bg-accent py-4 font-semibold text-white disabled:opacity-40"
+            className="btn-primary"
             disabled={busy}
             onClick={() => {
               const v = verify
@@ -166,7 +166,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
           >
             Il codice corrisponde
           </button>
-          <button className="key py-3" onClick={() => setVerify(null)}>
+          <button className="btn-secondary" onClick={() => setVerify(null)}>
             Annulla
           </button>
         </div>
@@ -177,7 +177,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
   return (
     <div className="safe-top safe-bottom flex h-full flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-6">
       <div className="flex flex-col items-center gap-3">
-        <img src="/icons/icon.svg" alt="" className="h-16 w-16" />
+        <img src="/icons/icon.svg" alt="" className="brand-glow h-16 w-16" />
         <h1 className="text-2xl font-semibold">Associa questo dispositivo</h1>
         <p className="max-w-xs text-center text-sm text-gray-400">
           {isNative
@@ -190,10 +190,17 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
         <button
           onClick={() => void scan()}
           disabled={busy}
-          className="w-full max-w-xs rounded-2xl bg-accent py-4 font-semibold text-white disabled:opacity-40"
+          className="btn-primary w-full max-w-xs"
         >
           Scansiona il QR code
         </button>
+      )}
+      {isNative && (
+        <div className="flex w-full max-w-xs items-center gap-3 text-[11px] font-semibold tracking-wider text-muted uppercase">
+          <span className="h-px flex-1 bg-white/10" />
+          oppure con PIN
+          <span className="h-px flex-1 bg-white/10" />
+        </div>
       )}
 
       <form
@@ -218,7 +225,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
                 const pasted = e.target.value.length - server.length > 1
                 if (!(pasted && handleLink(e.target.value))) setServerInput(e.target.value)
               }}
-              className="rounded-xl bg-ink-800 px-3 py-3 font-mono text-base text-gray-100 outline-none focus:ring-2 focus:ring-accent"
+              className="field font-mono"
             />
           </label>
         )}
@@ -230,7 +237,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
           placeholder="000000"
           value={digits}
           onChange={(e) => setPin(e.target.value)}
-          className="rounded-2xl bg-ink-800 py-4 text-center font-mono text-3xl tracking-[0.5em] outline-none focus:ring-2 focus:ring-accent"
+          className="rounded-2xl border border-white/5 bg-ink-800 py-4 text-center font-mono text-3xl tracking-[0.5em] outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
           aria-label="PIN"
         />
         <label className="flex flex-col gap-1 text-xs text-gray-400">
@@ -239,17 +246,17 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
             value={name}
             maxLength={64}
             onChange={(e) => setName(e.target.value)}
-            className="rounded-xl bg-ink-800 px-3 py-3 text-base text-gray-100 outline-none focus:ring-2 focus:ring-accent"
+            className="field"
           />
         </label>
         <button
           type="submit"
           disabled={busy || digits.length !== 6}
-          className={`rounded-2xl py-4 font-semibold disabled:opacity-40 ${isNative ? 'key' : 'bg-accent text-white'}`}
+          className={isNative ? 'btn-secondary' : 'btn-primary'}
         >
           {busy ? 'Verifica…' : 'Associa con PIN'}
         </button>
-        {error && <p className="rounded-xl bg-red-500/15 p-3 text-center text-sm text-red-300">{error}</p>}
+        {error && <p className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-center text-sm text-red-300">{error}</p>}
       </form>
 
       {!isNative && (

@@ -59,14 +59,14 @@ export default function AppsPanel({ onShowScreen }: { onShowScreen: () => void }
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="Cerca un'app o una finestra"
-          className="min-w-0 flex-1 rounded-xl bg-ink-800 px-3 py-3 text-base text-gray-100 outline-none focus:ring-2 focus:ring-accent"
+          className="min-w-0 flex-1 field"
         />
         <button className="key px-4" onClick={() => void load()} aria-label="Aggiorna">
           <Icon name="refresh" />
         </button>
       </div>
 
-      {error && <p className="rounded-xl bg-red-500/15 p-3 text-center text-sm text-red-300">{error}</p>}
+      {error && <p className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-center text-sm text-red-300">{error}</p>}
       {list === null && !error && <p className="text-center text-sm text-gray-500">Caricamento…</p>}
       {list !== null && shown.length === 0 && (
         <p className="text-center text-sm text-gray-500">{filter ? 'Nessun risultato.' : 'Nessuna finestra aperta.'}</p>
@@ -75,7 +75,7 @@ export default function AppsPanel({ onShowScreen }: { onShowScreen: () => void }
       {shown.map((w) => {
         const open = selected === w.id
         return (
-          <div key={w.id} className={`rounded-2xl bg-ink-900 ${w.focused ? 'ring-1 ring-accent/60' : ''}`}>
+          <div key={w.id} className={`card ${w.focused ? 'border-accent/50' : ''}`}>
             <button className="flex w-full items-center gap-3 p-4 text-left" onClick={() => setSelected(open ? null : w.id)}>
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 font-semibold text-accent">
                 {(w.app || '?').slice(0, 1).toUpperCase()}

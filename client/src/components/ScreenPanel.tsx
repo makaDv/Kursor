@@ -233,7 +233,7 @@ export default function ScreenPanel({ control }: { control: KursorSocket }) {
       </div>
 
       {showSettings && (
-        <div className="mx-3 mb-3 grid gap-3 rounded-2xl bg-ink-900 p-4 text-sm">
+        <div className="mx-3 mb-3 grid gap-3 card p-4 text-sm">
           <Slider label={`FPS: ${prefs.streamFps}`} min={1} max={30} value={prefs.streamFps}
             onChange={(v) => setPrefs({ streamFps: v })} onCommit={pushConfig} />
           <Slider label={`Qualità: ${prefs.streamQuality}`} min={10} max={95} value={prefs.streamQuality}

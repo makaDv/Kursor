@@ -179,17 +179,26 @@ export function TermsGate({ onAccept }: { onAccept: () => void }) {
   }
   return (
     <div className="safe-top safe-bottom flex h-full flex-col items-center justify-center gap-6 overflow-y-auto px-6 py-8">
-      <img src="/icons/icon.svg" alt="" className="h-14 w-14" />
+      <img src="/icons/icon.svg" alt="" className="brand-glow h-14 w-14" />
       <h1 className="text-2xl font-semibold">Benvenuto in PadLink</h1>
-      <ul className="flex max-w-sm flex-col gap-3 text-sm text-gray-300">
-        <li>• PadLink controlla un PC su cui hai installato il programma PadLink: mouse, tastiera, schermo, spegnimento.</li>
-        <li>
-          • Usalo <b>solo su computer tuoi o che sei autorizzato a gestire</b>. Controllare il PC di altri senza consenso è
-          vietato e può costituire reato.
-        </li>
-        <li>• Sul PC un indicatore mostra sempre quando il telefono è connesso.</li>
-        <li>• Nessun account, nessun dato raccolto: tutto resta fra i tuoi dispositivi.</li>
-      </ul>
+      <div className="card w-full max-w-sm divide-y divide-white/5">
+        {(
+          [
+            ['bg-accent-2', 'Cosa fa', 'Mouse, tastiera, schermo, app aperte, blocco e spegnimento del PC su cui hai installato PadLink.'],
+            ['bg-warn', 'Solo PC tuoi', 'Usalo solo su computer tuoi o che sei autorizzato a gestire. Controllare il PC di altri senza consenso è vietato e può costituire reato.'],
+            ['bg-ok', 'Sempre visibile', 'Sul PC un indicatore mostra sempre quando il telefono è connesso.'],
+            ['bg-accent', 'Privato', 'Nessun account e nessun dato raccolto: tutto resta fra i tuoi dispositivi, cifrato.'],
+          ] as const
+        ).map(([dot, title, text]) => (
+          <div key={title} className="flex gap-3 p-4">
+            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot}`} />
+            <div>
+              <p className="text-sm font-semibold">{title}</p>
+              <p className="text-xs text-muted">{text}</p>
+            </div>
+          </div>
+        ))}
+      </div>
       <LegalLinks />
       <label className="flex max-w-sm items-start gap-3 text-sm text-gray-300">
         <input type="checkbox" className="mt-1 h-4 w-4" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
@@ -198,7 +207,7 @@ export function TermsGate({ onAccept }: { onAccept: () => void }) {
       <button
         disabled={!checked}
         onClick={accept}
-        className="w-full max-w-sm rounded-2xl bg-accent py-4 font-semibold text-white disabled:opacity-40"
+        className="btn-primary w-full max-w-sm"
       >
         Continua
       </button>
