@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, pair } from '../lib/api'
+import { t, useLang } from '../lib/i18n'
 import { KursorNative } from '../lib/native'
 import {
   apiUrl,
@@ -23,13 +24,13 @@ function defaultDeviceName() {
 }
 
 function describe(err: unknown): string {
-  if (!(err instanceof ApiError)) return 'Errore imprevisto'
+  if (!(err instanceof ApiError)) return t('Errore imprevisto')
   if (err.code === 'locked_out' && err.retryAfter) {
     const min = Math.ceil(err.retryAfter / 60)
-    return `Troppi tentativi falliti. Bloccato per ${min} minut${min === 1 ? 'o' : 'i'}.`
+    return min === 1 ? t('Troppi tentativi falliti. Bloccato per 1 minuto.') : t('Troppi tentativi falliti. Bloccato per {n} minuti.', { n: min })
   }
   if (err.code === 'invalid_code' && err.remainingAttempts !== undefined) {
-    return `Codice non valido. Tentativi rimasti: ${err.remainingAttempts}.`
+    return t('Codice non valido. Tentativi rimasti: {n}.', { n: err.remainingAttempts })
   }
   return err.message
 }
@@ -40,7 +41,17 @@ interface Verify {
   secret: string
 }
 
-export default function PairScreen({ initialCode, onPaired }: { initialCode: string | null; onPaired: () => void }) {
+export default function PairScreen({
+  initialCode,
+  onPaired,
+  onCancel,
+}: {
+  initialCode: string | null
+  onPaired: () => void
+  /** Shown when another PC is already paired (adding a second PC / changing PC). */
+  onCancel?: () => void
+}) {
+  useLang()
   const [pin, setPin] = useState('')
   const [name, setName] = useState(defaultDeviceName)
   const [server, setServerInput] = useState(() => getServer()?.origin.replace(/^https:\/\//, '') ?? '')
@@ -86,12 +97,12 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
         return doPair(secret, saved)
       }
       if (!probe.fingerprint) {
-        setError('Il PC non presenta un certificato PadLink valido.')
+        setError(t('Il PC non presenta un certificato PadLink valido.'))
       } else {
         setVerify({ cfg: { origin, pin: probe.fingerprint }, secret })
       }
     } catch {
-      setError('PC non raggiungibile. Controlla indirizzo e rete Wi-Fi.')
+      setError(t('PC non raggiungibile. Controlla indirizzo e rete Wi-Fi.'))
     } finally {
       setBusy(false)
     }
@@ -103,8 +114,8 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
     if (!origin) {
       setError(
         LAN_ONLY
-          ? 'Indirizzo non valido. Su iPhone PadLink si collega solo a PC sulla stessa rete Wi-Fi (es. 192.168.1.10).'
-          : 'Indirizzo del PC non valido (es. 192.168.1.10:8443)',
+          ? t('Indirizzo non valido. Su iPhone PadLink si collega solo a PC sulla stessa rete Wi-Fi (es. 192.168.1.10).')
+          : t('Indirizzo del PC non valido (es. 192.168.1.10:8443)'),
       )
       return
     }
@@ -123,9 +134,9 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
     setError(null)
     try {
       const { value } = await KursorNative.scanQr()
-      if (value && !handleLink(value)) setError('Questo QR non è un codice di associazione PadLink.')
+      if (value && !handleLink(value)) setError(t('Questo QR non è un codice di associazione PadLink.'))
     } catch {
-      setError('Fotocamera non disponibile. Inserisci indirizzo e PIN a mano.')
+      setError(t('Fotocamera non disponibile. Inserisci indirizzo e PIN a mano.'))
     }
   }
 
@@ -144,15 +155,15 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
   if (verify) {
     return (
       <div className="safe-top safe-bottom flex h-full flex-col items-center justify-center gap-6 overflow-y-auto px-6 text-center">
-        <h1 className="text-xl font-semibold">Verifica il PC</h1>
+        <h1 className="text-xl font-semibold">{t('Verifica il PC')}</h1>
         <p className="max-w-xs text-sm text-gray-400">
-          Controlla che nella finestra di PadLink sul PC compaia <b>esattamente</b> questo codice di verifica:
+          {t('Controlla che nella finestra di PadLink sul PC compaia esattamente questo codice di verifica:')}
         </p>
         <p className="card px-5 py-4 font-mono text-2xl tracking-wider text-accent-2">
           {verificationCode(verify.cfg.pin!)}
         </p>
         <p className="max-w-xs text-xs text-gray-500">
-          Se il codice è diverso, qualcuno sulla rete potrebbe intercettare la connessione: non proseguire.
+          {t('Se il codice è diverso, qualcuno sulla rete potrebbe intercettare la connessione: non proseguire.')}
         </p>
         <div className="flex w-full max-w-xs flex-col gap-3">
           <button
@@ -164,10 +175,10 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
               void doPair(v.secret, v.cfg)
             }}
           >
-            Il codice corrisponde
+            {t('Il codice corrisponde')}
           </button>
           <button className="btn-secondary" onClick={() => setVerify(null)}>
-            Annulla
+            {t('Annulla')}
           </button>
         </div>
       </div>
@@ -178,11 +189,11 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
     <div className="safe-top safe-bottom flex h-full flex-col items-center justify-center gap-8 overflow-y-auto px-6 py-6">
       <div className="flex flex-col items-center gap-3">
         <img src="/icons/icon.svg" alt="" className="brand-glow h-16 w-16" />
-        <h1 className="text-2xl font-semibold">Associa questo dispositivo</h1>
+        <h1 className="text-2xl font-semibold">{onCancel ? t('Associa un altro PC') : t('Associa questo dispositivo')}</h1>
         <p className="max-w-xs text-center text-sm text-gray-400">
           {isNative
-            ? 'Apri PadLink sul PC e inquadra il QR code, oppure inserisci indirizzo e PIN.'
-            : 'Inserisci il PIN a 6 cifre mostrato sul PC, oppure inquadra il QR code.'}
+            ? t('Apri PadLink sul PC e inquadra il QR code, oppure inserisci indirizzo e PIN.')
+            : t('Inserisci il PIN a 6 cifre mostrato sul PC, oppure inquadra il QR code.')}
         </p>
       </div>
 
@@ -192,13 +203,13 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
           disabled={busy}
           className="btn-primary w-full max-w-xs"
         >
-          Scansiona il QR code
+          {t('Scansiona il QR code')}
         </button>
       )}
       {isNative && (
         <div className="flex w-full max-w-xs items-center gap-3 text-[11px] font-semibold tracking-wider text-muted uppercase">
           <span className="h-px flex-1 bg-white/10" />
-          oppure con PIN
+          {t('oppure con PIN')}
           <span className="h-px flex-1 bg-white/10" />
         </div>
       )}
@@ -212,7 +223,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
       >
         {isNative && (
           <label className="flex flex-col gap-1 text-xs text-gray-400">
-            Indirizzo del PC
+            {t('Indirizzo del PC')}
             <input
               value={server}
               inputMode="url"
@@ -241,7 +252,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
           aria-label="PIN"
         />
         <label className="flex flex-col gap-1 text-xs text-gray-400">
-          Nome dispositivo
+          {t('Nome dispositivo')}
           <input
             value={name}
             maxLength={64}
@@ -254,19 +265,24 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
           disabled={busy || digits.length !== 6}
           className={isNative ? 'btn-secondary' : 'btn-primary'}
         >
-          {busy ? 'Verifica…' : 'Associa con PIN'}
+          {busy ? t('Verifica…') : t('Associa con PIN')}
         </button>
         {error && <p className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-center text-sm text-red-300">{error}</p>}
       </form>
 
       {!isNative && (
         <p className="max-w-xs text-center text-xs text-gray-500">
-          Prima volta? Scarica e installa il{' '}
+          {t('Prima volta? Scarica e installa il')}{' '}
           <a href={apiUrl('/ca.crt')} target="_blank" rel="noreferrer" className="text-accent-2 underline">
-            certificato del PC
+            {t('certificato del PC')}
           </a>{' '}
-          per una connessione cifrata e fidata (istruzioni nel README).
+          {t('per una connessione cifrata e fidata (istruzioni nel README).')}
         </p>
+      )}
+      {onCancel && (
+        <button className="btn-ghost w-full max-w-xs" onClick={onCancel}>
+          {t('Annulla')}
+        </button>
       )}
       <PrivacyNote />
     </div>

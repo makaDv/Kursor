@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from . import __version__
-from .control import system, windows
+from .control import clipboard, system, windows
 from .logging_setup import audit
 from .netutil import is_lan_peer, resolve_client_ip
 from .security.pairing import PairResult
@@ -114,6 +114,13 @@ async def require_device(request: Request) -> AuthContext:
     return AuthContext(device_id=claims["sub"], ip=client_ip(request))
 
 
+def require_perm(svc: Services, ctx: AuthContext, perm: str) -> None:
+    device = svc.store.get(ctx.device_id)
+    if device is None or not device.can(perm):
+        raise HTTPException(403, detail={"code": "no_permission",
+                                         "message": "Questo dispositivo non ha il permesso (impostalo nella finestra di PadLink sul PC)"})
+
+
 # ---- request models -----------------------------------------------------------
 class PairRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -127,6 +134,11 @@ class SystemRequest(BaseModel):
     confirm: str = Field(max_length=16)
 
 
+class ClipboardSetRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: str = Field(max_length=100_000)
+
+
 class WindowActionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     confirm: str | None = Field(default=None, max_length=16)
@@ -134,10 +146,22 @@ class WindowActionRequest(BaseModel):
 
 # ---- background watcher -----------------------------------------------------------
 async def _watch_revocations(svc: Services) -> None:
-    """Applies revocations made from the CLI to live WebSocket sessions within ~2 s."""
+    """Applies revocations made from the CLI to live WebSocket sessions within ~2 s.
+
+    Every 10 minutes it also revokes devices unused for longer than the
+    "inactive_days" preference (0 = never), so a forgotten phone stops working.
+    """
+    last_purge = 0.0
     while True:
         await asyncio.sleep(2)
         try:
+            days = svc.prefs.value.inactive_days if svc.prefs else 0
+            if days and time.time() - last_purge > 600:
+                last_purge = time.time()
+                live = set(svc.registry.device_ids())
+                for device_id in svc.store.stale(days * 86400):
+                    if device_id not in live and svc.store.revoke(device_id):
+                        audit("device_revoked", device=device_id, by="inactivity", days=days)
             svc.tokens.maybe_reload()
             alive = svc.store.ids()
             for device_id in svc.registry.device_ids():
@@ -346,6 +370,7 @@ def create_app(svc: Services) -> FastAPI:
     # ---- open applications (windows) -------------------------------------------------
     @app.get("/api/windows")
     async def list_open_windows(ctx: AuthContext = Depends(require_device)) -> Any:
+        require_perm(svc, ctx, "apps")
         if svc.paused:
             return error(423, "paused", "Controllo in pausa sul PC")
         if not svc.api_limiter.allow(ctx.device_id):
@@ -359,7 +384,10 @@ def create_app(svc: Services) -> FastAPI:
             raise HTTPException(404, detail={"code": "unknown_action", "message": "Azione sconosciuta"})
         if svc.paused:
             return error(423, "paused", "Controllo in pausa sul PC")
+        require_perm(svc, ctx, "apps")
         destructive = action in ("close", "kill")
+        if action == "kill":
+            require_perm(svc, ctx, "power")
         if destructive and body.confirm != action:
             raise HTTPException(400, detail={"code": "confirmation_required", "message": "Conferma mancante"})
         limiter = svc.system_limiter if action == "kill" else svc.api_limiter
@@ -373,6 +401,9 @@ def create_app(svc: Services) -> FastAPI:
         # Audit the application, never the window title (it may contain private data).
         audit("window_action", logging.WARNING if destructive else logging.INFO, action=action, app=info["exe"],
               device=ctx.device_id, ip=ctx.ip)
+        if destructive:
+            verb = "ha chiuso" if action == "close" else "ha terminato"
+            svc.notify(f"{svc.device_name(ctx.device_id)} {verb} {info['app']}")
         return {"ok": True}
 
     @app.post("/api/system/{action}")
@@ -381,11 +412,14 @@ def create_app(svc: Services) -> FastAPI:
             raise HTTPException(404, detail={"code": "unknown_action", "message": "Azione sconosciuta"})
         if body.confirm != action:
             raise HTTPException(400, detail={"code": "confirmation_required", "message": "Conferma mancante"})
+        require_perm(svc, ctx, "power")
         if svc.paused:
             return error(423, "paused", "Controllo in pausa sul PC")
         if not svc.system_limiter.allow(ctx.device_id):
             return error(429, "rate_limited", "Attendi qualche secondo", retry_after=5)
         audit("system_action", logging.WARNING, action=action, device=ctx.device_id, ip=ctx.ip)
+        label = {"lock": "ha bloccato", "sleep": "sta sospendendo", "shutdown": "sta spegnendo"}[action]
+        svc.notify(f"{svc.device_name(ctx.device_id)} {label} il PC")
         if action == "lock":
             try:
                 await asyncio.to_thread(system.perform, action)
@@ -397,6 +431,42 @@ def create_app(svc: Services) -> FastAPI:
             loop = asyncio.get_running_loop()
             loop.call_later(1.0, lambda: loop.run_in_executor(None, _run_system_action, action, ctx.device_id))
         return {"ok": True, "action": action}
+
+    # ---- clipboard (text only, on explicit request) ----------------------------------
+    @app.post("/api/clipboard/get")
+    async def clipboard_get(ctx: AuthContext = Depends(require_device)) -> Any:
+        require_perm(svc, ctx, "clipboard")
+        if svc.paused:
+            return error(423, "paused", "Controllo in pausa sul PC")
+        if not svc.api_limiter.allow(ctx.device_id):
+            return error(429, "rate_limited", "Troppe richieste", retry_after=2)
+        try:
+            text = await asyncio.to_thread(clipboard.get_text)
+        except clipboard.ClipboardError as exc:
+            return error(409, "clipboard_busy", str(exc))
+        audit("clipboard_read", logging.INFO, device=ctx.device_id, ip=ctx.ip, chars=len(text))  # never the content
+        svc.notify(f"{svc.device_name(ctx.device_id)} ha copiato gli appunti del PC")
+        return {"text": text}
+
+    @app.post("/api/clipboard/set")
+    async def clipboard_set(body: ClipboardSetRequest, ctx: AuthContext = Depends(require_device)) -> Any:
+        require_perm(svc, ctx, "clipboard")
+        if svc.paused:
+            return error(423, "paused", "Controllo in pausa sul PC")
+        if not svc.api_limiter.allow(ctx.device_id):
+            return error(429, "rate_limited", "Troppe richieste", retry_after=2)
+        try:
+            await asyncio.to_thread(clipboard.set_text, body.text)
+        except clipboard.ClipboardError as exc:
+            return error(409, "clipboard_busy", str(exc))
+        audit("clipboard_write", logging.INFO, device=ctx.device_id, ip=ctx.ip, chars=len(body.text))
+        return {"ok": True}
+
+    @app.get("/api/pc")
+    async def pc_info(ctx: AuthContext = Depends(require_device)) -> dict[str, Any]:
+        device = svc.store.get(ctx.device_id)
+        return {"name": svc.pc_name, "mac": svc.pc_mac, "version": __version__,
+                "perms": device.perms if device else {}}
 
     # ---- websockets ------------------------------------------------------------------
     app.add_api_websocket_route("/ws/control", control_endpoint)

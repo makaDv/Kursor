@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       targets:
-        description: "android | ios | windows | all"
+        description: "test | android | ios | windows | all"
         default: all
         required: true
 
@@ -19,6 +19,38 @@ permissions:
   contents: read
 
 jobs:
+  # Security gate: end-to-end server tests + known-vulnerability audit of all dependencies.
+  test:
+    if: inputs.targets == 'all' || inputs.targets == 'test'
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.14" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
+      - name: Python deps
+        shell: pwsh
+        working-directory: server
+        run: |
+          python -m venv .venv
+          $env:SKIP_CYTHON = '1'
+          .venv\Scripts\python -m pip install --no-binary zeroconf -r requirements.txt -r requirements-desktop.txt -r requirements-dev.txt
+      - name: pip-audit (known CVEs)
+        working-directory: server
+        run: .venv\Scripts\python -m pip_audit -r requirements.txt -r requirements-desktop.txt
+      - name: npm audit (production deps)
+        working-directory: client
+        run: |
+          npm ci
+          npm audit --omit=dev --audit-level=high
+      - name: Client build (typecheck)
+        working-directory: client
+        run: npm run build
+      - name: End-to-end tests
+        working-directory: server
+        run: .venv\Scripts\python -m pytest -q tests
+
   android:
     if: inputs.targets == 'all' || inputs.targets == 'android'
     runs-on: ubuntu-24.04

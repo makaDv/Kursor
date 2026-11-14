@@ -83,3 +83,48 @@ def resolve_client_ip(peer: str | None, headers: dict[str, str] | object, trust_
             except ValueError:
                 pass
     return peer
+
+
+def primary_mac(ip: str | None = None) -> str | None:
+    """MAC address of the LAN interface holding ``ip`` (for Wake-on-LAN), "AA:BB:CC:DD:EE:FF"."""
+    import re
+    import subprocess
+    import sys
+    import uuid
+
+    ip = ip or primary_lan_ip()
+    if sys.platform == "win32" and ip:
+        try:
+            out = subprocess.run(["ipconfig", "/all"], capture_output=True, text=True, timeout=5,
+                                 encoding="oem", errors="replace",
+                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+        except (OSError, subprocess.SubprocessError):
+            out = ""
+        # Adapter sections start at column 0; the MAC and the IPv4 are indented lines inside.
+        for section in re.split(r"\n(?=\S)", out):
+            if re.search(rf"\b{re.escape(ip)}\b", section):
+                m = re.search(r"\b((?:[0-9A-F]{2}-){5}[0-9A-F]{2})\b", section, re.I)
+                if m:
+                    return m.group(1).replace("-", ":").upper()
+    node = uuid.getnode()
+    if (node >> 40) & 1:  # random (not a real NIC) address
+        return None
+    return ":".join(f"{(node >> s) & 0xFF:02X}" for s in range(40, -1, -8))
+
+
+def public_network_profile() -> bool:
+    """True if Windows classifies an active connection as a *Public* network."""
+    import subprocess
+    import sys
+
+    if sys.platform != "win32":
+        return False
+    try:
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+             "(Get-NetConnectionProfile).NetworkCategory -join ','"],
+            capture_output=True, text=True, timeout=10,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return "Public" in out

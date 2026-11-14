@@ -4,4 +4,7 @@
     <string name="title_activity_main">PadLink</string>
     <string name="package_name">io.github.makadv.padlink</string>
     <string name="custom_url_scheme">io.github.makadv.padlink</string>
+    <string name="shortcut_trackpad">Mouse</string>
+    <string name="shortcut_keyboard">Tastiera</string>
+    <string name="shortcut_screen">Schermo</string>
 </resources>

@@ -27,7 +27,7 @@ import okhttp3.OkHttpClient;
  * QR code or confirmed by the user through the verification code) the chain is
  * validated with that CA as the ONLY trust anchor: system and user-installed CAs
  * are ignored, so no other certificate authority can intercept the connection.
- * Hostname verification stays on (OkHttp default verifier).
+ * Hostname verification is not needed with a pin (see build()); with system trust it stays on.
  *
  * Without a pin (e.g. a Cloudflare tunnel with a public certificate) the normal
  * system trust store is used. Cleartext HTTP is never allowed.
@@ -107,10 +107,17 @@ final class PinnedTls {
         };
     }
 
-    private static OkHttpClient build(X509TrustManager tm) throws Exception {
+    private static OkHttpClient build(X509TrustManager tm, boolean pinned) throws Exception {
         SSLContext ctx = SSLContext.getInstance("TLS");
         ctx.init(null, new TrustManager[] {tm}, null);
-        return new OkHttpClient.Builder()
+        OkHttpClient.Builder b = new OkHttpClient.Builder();
+        if (pinned) {
+            // The pinned CA is private to this one PC (and name-constrained): it IS the identity.
+            // Skipping the hostname check lets the app follow the PC to a new DHCP address
+            // (found again via mDNS) before the PC has re-issued its certificate.
+            b.hostnameVerifier((host, session) -> true);
+        }
+        return b
             .sslSocketFactory(ctx.getSocketFactory(), tm)
             .connectionSpecs(Collections.singletonList(ConnectionSpec.MODERN_TLS))
             .followRedirects(false)
@@ -127,7 +134,7 @@ final class PinnedTls {
         String key = pin == null ? SYSTEM : pin;
         OkHttpClient c = CLIENTS.get(key);
         if (c != null) return c;
-        c = build(pin == null ? systemTrust() : pinnedTrust(pin));
+        c = build(pin == null ? systemTrust() : pinnedTrust(pin), pin != null);
         CLIENTS.put(key, c);
         return c;
     }

@@ -49,4 +49,8 @@ dependencies {
     // Offline QR scanner (pure ZXing, Apache-2.0). Deliberately not Google ML Kit,
     // which sends usage metrics to Google and would have to be declared in Data safety.
     implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+    // Fingerprint / face unlock (on-device, nothing leaves the phone).
+    implementation 'androidx.biometric:biometric:1.1.0'
+    // Google Play In-App Review: the rating dialog is shown by the Play Store app itself.
+    implementation 'com.google.android.play:review:2.0.2'
 }

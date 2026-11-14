@@ -131,7 +131,11 @@ def cmd_run(args: argparse.Namespace) -> int:
         svc.pairing.close()
 
     audit("server_start", version=__version__, host=s.host, port=s.port, tls=s.tls)
-    uvicorn.Server(rt.uvicorn_config()).run()
+    rt.start_discovery()
+    try:
+        uvicorn.Server(rt.uvicorn_config()).run()
+    finally:
+        rt.stop_discovery()
     return 0
 
 

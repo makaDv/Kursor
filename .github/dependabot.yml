@@ -1,0 +1,17 @@
+# Weekly dependency updates (security fixes arrive as pull requests to review).
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /server
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: /client
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+  - package-ecosystem: gradle
+    directory: /client/native/kursor-native/android
+    schedule: { interval: monthly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }

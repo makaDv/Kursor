@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { t, useLang } from '../lib/i18n'
 import { KursorSocket, type Monitor, type SocketStatus } from '../lib/socket'
 import { getPrefs, haptic, usePrefs } from '../lib/settings'
 import Trackpad from './Trackpad'
@@ -11,6 +12,7 @@ const MIME = ['image/jpeg', 'image/webp']
 type Mode = 'touch' | 'trackpad'
 
 export default function ScreenPanel({ control }: { control: KursorSocket }) {
+  useLang()
   const [prefs, setPrefs] = usePrefs()
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState<SocketStatus>('idle')
@@ -211,40 +213,40 @@ export default function ScreenPanel({ control }: { control: KursorSocket }) {
       <div className="flex items-center gap-2 p-3">
         <button className={`key gap-2 px-4 ${running ? 'key-on' : ''}`} onClick={() => setRunning(!running)}>
           <Icon name={running ? 'stop' : 'play'} className="h-4 w-4" />
-          {running ? 'Ferma' : 'Avvia streaming'}
+          {running ? t('Ferma') : t('Avvia streaming')}
         </button>
         <div className="flex rounded-xl bg-ink-800 p-1 text-xs">
           {(['touch', 'trackpad'] as Mode[]).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`rounded-lg px-3 py-2 ${mode === m ? 'bg-ink-700 text-white' : 'text-gray-400'}`}
+              className={`rounded-lg px-3 py-2 ${mode === m ? 'bg-ink-700 text-gray-50' : 'text-gray-400'}`}
             >
-              {m === 'touch' ? 'Tocco' : 'Trackpad'}
+              {m === 'touch' ? t('Tocco') : t('Trackpad')}
             </button>
           ))}
         </div>
-        <button className="key ml-auto px-3" onClick={fullscreen} aria-label="Schermo intero">
+        <button className="key ml-auto px-3" onClick={fullscreen} aria-label={t('Schermo intero')}>
           <Icon name="expand" className="h-4 w-4" />
         </button>
-        <button className={`key px-3 ${showSettings ? 'key-on' : ''}`} onClick={() => setShowSettings(!showSettings)}>
+        <button className={`key px-3 ${showSettings ? 'key-on' : ''}`} onClick={() => setShowSettings(!showSettings)} aria-label={t('Impostazioni streaming')} aria-expanded={showSettings}>
           ⚙
         </button>
       </div>
 
       {showSettings && (
         <div className="mx-3 mb-3 grid gap-3 card p-4 text-sm">
-          <Slider label={`FPS: ${prefs.streamFps}`} min={1} max={30} value={prefs.streamFps}
+          <Slider label={t('Fotogrammi al secondo: {v}', { v: prefs.streamFps })} min={1} max={30} value={prefs.streamFps}
             onChange={(v) => setPrefs({ streamFps: v })} onCommit={pushConfig} />
-          <Slider label={`Qualità: ${prefs.streamQuality}`} min={10} max={95} value={prefs.streamQuality}
+          <Slider label={t('Qualità: {v}', { v: prefs.streamQuality })} min={10} max={95} value={prefs.streamQuality}
             onChange={(v) => setPrefs({ streamQuality: v })} onCommit={pushConfig} />
-          <Slider label={`Larghezza max: ${prefs.streamWidth}px`} min={480} max={2560} step={160} value={prefs.streamWidth}
+          <Slider label={t('Larghezza max: {v}px', { v: prefs.streamWidth })} min={480} max={2560} step={160} value={prefs.streamWidth}
             onChange={(v) => setPrefs({ streamWidth: v })} onCommit={pushConfig} />
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={prefs.streamAuto}
                 onChange={(e) => { setPrefs({ streamAuto: e.target.checked }); pushConfig() }} />
-              Qualità adattiva
+              {t('Qualità adattiva')}
             </label>
             <select value={prefs.streamFormat} className="rounded-lg bg-ink-800 px-2 py-1"
               onChange={(e) => { setPrefs({ streamFormat: e.target.value as 'jpeg' | 'webp' }); pushConfig() }}>
@@ -276,14 +278,14 @@ export default function ScreenPanel({ control }: { control: KursorSocket }) {
           />
           {!running && (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500">
-              Streaming disattivato
+              {status === 'forbidden' ? t('Questo dispositivo non ha il permesso di vedere lo schermo (impostazione sul PC).') : t('Streaming disattivato')}
             </div>
           )}
         </div>
       </div>
       {running && (
         <p className="px-3 pt-1 text-right font-mono text-[10px] text-gray-500">
-          {status !== 'open' ? status : `${stats.fps} fps · ${stats.kbps} kbit/s · ${stats.w}×${stats.h}`}
+          {status === 'forbidden' ? t('Non consentito') : status !== 'open' ? t('Connessione…') : `${stats.fps} fps · ${stats.kbps} kbit/s · ${stats.w}×${stats.h}`}
         </p>
       )}
       {mode === 'trackpad' && <Trackpad socket={control} />}

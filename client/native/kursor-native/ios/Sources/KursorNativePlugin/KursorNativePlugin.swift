@@ -18,7 +18,14 @@ public class KursorNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "wsOpen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "wsSend", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "wsClose", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "scanQr", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "scanQr", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "biometricAvailable", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "biometricAuth", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "discover", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "wakeOnLan", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestReview", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setVolumeKeyCapture", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getLaunchTab", returnType: CAPPluginReturnPromise)
     ]
 
     // Same value the server allow-lists for the bundled app (security/origin.py).
@@ -265,6 +272,59 @@ public class KursorNativePlugin: CAPPlugin, CAPBridgedPlugin {
         let code = URLSessionWebSocketTask.CloseCode(rawValue: call.getInt("code") ?? 1000) ?? .normalClosure
         task?.cancel(with: code, reason: nil)
         call.resolve()
+    }
+
+    // MARK: biometrics, discovery, review, shortcuts
+
+    private var browsers: [PadLinkBrowser] = []
+    private var launchObserver: NSObjectProtocol?
+
+    override public func load() {
+        launchObserver = NotificationCenter.default.addObserver(forName: LaunchTab.notification, object: nil,
+                                                                queue: .main) { [weak self] _ in
+            if let tab = LaunchTab.take() { self?.notifyListeners("launchTab", data: ["tab": tab]) }
+        }
+    }
+
+    @objc func biometricAvailable(_ call: CAPPluginCall) {
+        call.resolve(["available": Biometrics.available()])
+    }
+
+    @objc func biometricAuth(_ call: CAPPluginCall) {
+        Biometrics.authenticate(reason: call.getString("reason") ?? "Sblocca PadLink") { ok, error in
+            call.resolve(["ok": ok, "error": error ?? ""])
+        }
+    }
+
+    @objc func discover(_ call: CAPPluginCall) {
+        let timeout = min(10.0, max(0.5, Double(call.getInt("timeout") ?? 3000) / 1000.0))
+        let browser = PadLinkBrowser()
+        browsers.append(browser)
+        browser.discover(timeout: timeout) { [weak self] found in
+            self?.browsers.removeAll { $0 === browser }
+            call.resolve(["pcs": found.map { f -> [String: Any] in
+                ["host": f.host, "port": f.port, "fp": orNull(f.fp), "name": orNull(f.name)]
+            }])
+        }
+    }
+
+    @objc func wakeOnLan(_ call: CAPPluginCall) {
+        // Broadcast UDP needs Apple's multicast entitlement: not available in the iOS app.
+        call.reject("Wake-on-LAN non disponibile su iPhone", "unsupported")
+    }
+
+    @objc func requestReview(_ call: CAPPluginCall) {
+        Review.request()
+        call.resolve()
+    }
+
+    @objc func setVolumeKeyCapture(_ call: CAPPluginCall) {
+        // iOS offers no public API to intercept the hardware volume buttons.
+        call.resolve()
+    }
+
+    @objc func getLaunchTab(_ call: CAPPluginCall) {
+        call.resolve(["tab": orNull(LaunchTab.take())])
     }
 
     // MARK: QR scanner

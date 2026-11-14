@@ -27,6 +27,8 @@ hiddenimports = [
     "uvicorn.protocols.websockets.auto",
     "uvicorn.protocols.websockets.websockets_impl",
     "uvicorn.lifespan.on",
+    # mDNS announcement (pure-Python build of zeroconf, see build.ps1)
+    "ifaddr",
 ]
 
 a = Analysis(

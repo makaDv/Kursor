@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KursorSocket } from '../lib/socket'
-import { getPrefs, haptic } from '../lib/settings'
+import { t, useLang } from '../lib/i18n'
+import { getPrefs, haptic, usePrefs } from '../lib/settings'
 
 /**
  * Gestures:
@@ -33,6 +34,8 @@ function centroid(list: TouchList): Pt {
 }
 
 export default function Trackpad({ socket, full = false }: { socket: KursorSocket; full?: boolean }) {
+  useLang()
+  const [prefs] = usePrefs()
   const padRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState(false)
   const [dragLock, setDragLock] = useState(false)
@@ -187,22 +190,29 @@ export default function Trackpad({ socket, full = false }: { socket: KursorSocke
         style={{ touchAction: 'none' }}
       >
         <span className="pointer-events-none px-6 text-center text-xs leading-relaxed text-gray-500">
-          {dragging ? 'Trascinamento…' : full ? 'Tocca = click · 2 dita = scroll / click destro · tieni premuto = trascina' : ''}
+          {dragging ? t('Trascinamento…') : full ? t('Tocca = click · 2 dita = scroll / click destro · tieni premuto = trascina') : ''}
         </span>
       </div>
-      <div className="grid grid-cols-[2fr_1fr_2fr_auto] gap-2">
-        <button className="key h-12" {...button('left')}>
-          Sinistro
-        </button>
-        <button className="key h-12" {...button('middle')}>
-          Centro
-        </button>
-        <button className="key h-12" {...button('right')}>
-          Destro
-        </button>
-        <button className={`key h-12 px-3 ${dragLock ? 'key-on' : ''}`} onClick={toggleDragLock} title="Blocca trascinamento">
-          ⇲
-        </button>
+      {/* Left-handed: mirrored order, the main (left-click) button sits under the left thumb's natural reach. */}
+      <div className={`grid gap-2 ${prefs.leftHanded ? 'grid-cols-[auto_2fr_1fr_2fr]' : 'grid-cols-[2fr_1fr_2fr_auto]'}`}>
+        {(prefs.leftHanded ? (['lock', 'right', 'middle', 'left'] as const) : (['left', 'middle', 'right', 'lock'] as const)).map((b) =>
+          b === 'lock' ? (
+            <button
+              key={b}
+              className={`key h-12 px-3 ${dragLock ? 'key-on' : ''}`}
+              onClick={toggleDragLock}
+              title={t('Blocca trascinamento')}
+              aria-label={t('Blocca trascinamento')}
+              aria-pressed={dragLock}
+            >
+              ⇲
+            </button>
+          ) : (
+            <button key={b} className="key h-12" {...button(b)}>
+              {t(b === 'left' ? 'Sinistro' : b === 'middle' ? 'Centro' : 'Destro')}
+            </button>
+          ),
+        )}
       </div>
     </div>
   )

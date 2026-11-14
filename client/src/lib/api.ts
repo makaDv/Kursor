@@ -10,6 +10,7 @@
  */
 import { apiUrl, isNative, loadRefreshToken, saveRefreshToken } from './platform'
 import { httpRequest, TransportError } from './transport'
+import { t } from './i18n'
 
 export class ApiError extends Error {
   status: number
@@ -68,7 +69,7 @@ function toApiError(status: number, body: unknown): ApiError {
   const d = (body as { detail?: unknown } | null)?.detail
   if (d && typeof d === 'object' && !Array.isArray(d)) detail = d as Record<string, unknown>
   const code = typeof detail.code === 'string' ? detail.code : `http_${status}`
-  const message = typeof detail.message === 'string' ? detail.message : `Errore ${status}`
+  const message = typeof detail.message === 'string' ? t(detail.message) : `${t('Errore')} ${status}`
   return new ApiError(status, code, message, detail)
 }
 
@@ -89,7 +90,7 @@ async function rawRequest<T>(path: string, init: { method?: string; body?: strin
     })
   } catch (err) {
     const code = err instanceof TransportError ? err.code : 'network'
-    throw new ApiError(0, code === 'pin_mismatch' ? 'pin_mismatch' : 'network', TRANSPORT_MESSAGES[code] ?? TRANSPORT_MESSAGES.network)
+    throw new ApiError(0, code === 'pin_mismatch' ? 'pin_mismatch' : 'network', t(TRANSPORT_MESSAGES[code] ?? TRANSPORT_MESSAGES.network))
   }
   if (!res.ok) throw toApiError(res.status, res.json())
   return res.json() as T
@@ -110,7 +111,7 @@ export function refresh(): Promise<boolean> {
       let body = '{}'
       if (isNative) {
         const stored = await loadRefreshToken()
-        if (!stored) throw new ApiError(401, 'no_session', 'Sessione assente')
+        if (!stored) throw new ApiError(401, 'no_session', t('Sessione assente'))
         body = JSON.stringify({ refresh_token: stored })
       }
       return rawRequest<TokenResponse>('/api/auth/refresh', { method: 'POST', body })
@@ -144,7 +145,7 @@ export async function authedRequest<T>(
 ): Promise<T> {
   const call = async () => {
     const token = await getAccessToken()
-    if (!token) throw new ApiError(401, 'unauthorized', 'Sessione scaduta')
+    if (!token) throw new ApiError(401, 'unauthorized', t('Sessione scaduta'))
     return rawRequest<T>(path, { ...init, headers: { ...(init.headers ?? {}), Authorization: `Bearer ${token}` } })
   }
   try {
@@ -180,6 +181,7 @@ export interface Device {
   last_ip: string
   user_agent: string
   current: boolean
+  perms?: Record<string, boolean>
 }
 
 export interface PcWindow {
@@ -192,6 +194,7 @@ export interface PcWindow {
   maximized: boolean
   focused: boolean
   protected: boolean
+  icon?: string | null
 }
 
 export type WindowAction = 'focus' | 'minimize' | 'maximize' | 'restore' | 'close' | 'kill'
@@ -199,6 +202,9 @@ export type WindowAction = 'focus' | 'minimize' | 'maximize' | 'restore' | 'clos
 export const api = {
   devices: () => authedRequest<{ current: string; devices: Device[] }>('/api/devices'),
   revokeDevice: (id: string) => authedRequest<{ ok: boolean }>(`/api/devices/${id}`, { method: 'DELETE' }),
+  clipboardGet: () => authedRequest<{ text: string }>('/api/clipboard/get', { method: 'POST', body: '{}' }),
+  clipboardSet: (text: string) =>
+    authedRequest<{ ok: boolean }>('/api/clipboard/set', { method: 'POST', body: JSON.stringify({ text }) }),
   windows: () => authedRequest<{ windows: PcWindow[] }>('/api/windows'),
   windowAction: (id: number, action: WindowAction) =>
     authedRequest<{ ok: boolean }>(`/api/windows/${id}/${action}`, {

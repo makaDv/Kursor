@@ -22,7 +22,8 @@ from .certs import CertBundle, ensure_certificates
 from .config import Settings
 from .control import enable_dpi_awareness
 from .logging_setup import setup_logging
-from .netutil import hostname
+from .discovery import Announcer
+from .netutil import hostname, primary_mac
 from .services import Services
 
 
@@ -33,6 +34,20 @@ class Runtime:
     audit_path: Path
     bundle: CertBundle | None
     ssl_kwargs: dict[str, Any] = field(default_factory=dict)
+    announcer: Announcer = field(default_factory=Announcer)
+
+    def start_discovery(self) -> bool:
+        """Announce the PC on the LAN (mDNS) if enabled, with the pinned CA fingerprint."""
+        s = self.settings
+        if s.public_origin or not (self.svc.prefs and self.svc.prefs.value.discoverable):
+            return False
+        from .netutil import is_private_ipv4
+
+        ips = [ip for ip in self.svc.lan_ips if is_private_ipv4(ip) and not ip.startswith("127.")]
+        return self.announcer.start(s.port, ips, self.svc.pc_name, self.bundle.ca_pin if self.bundle else None)
+
+    def stop_discovery(self) -> None:
+        self.announcer.stop()
 
     def uvicorn_config(self) -> uvicorn.Config:
         s = self.settings
@@ -64,4 +79,5 @@ def prepare(s: Settings) -> Runtime:
             "ssl_keyfile": str(bundle.server_key),
             "ssl_ciphers": "ECDHE+AESGCM:ECDHE+CHACHA20",
         }
+    svc.pc_mac = primary_mac()
     return Runtime(s, svc, audit_path, bundle, ssl_kwargs)

@@ -46,6 +46,7 @@ class WindowInfo:
     maximized: bool
     focused: bool
     protected: bool
+    icon: str | None = None  # data:image/png;base64,... (32 px, from the program's exe)
 
 
 if sys.platform == "win32":
@@ -90,7 +91,11 @@ if sys.platform == "win32":
     DWMWA_CLOAKED = 14
     PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
     PROCESS_TERMINATE = 0x0001
-    SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE = 3, 6, 9
+    SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOW = 3, 6, 9, 5
+    SWP_NOSIZE, SWP_NOMOVE, SWP_SHOWWINDOW = 0x0001, 0x0002, 0x0040
+    HWND_TOPMOST, HWND_NOTOPMOST = -1, -2
+    user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                    ctypes.c_int, wintypes.UINT]
     WM_CLOSE = 0x0010
     VK_MENU, KEYEVENTF_KEYUP = 0x12, 0x0002
 
@@ -160,6 +165,69 @@ if sys.platform == "win32":
             pass
         return fallback
 
+    shell32 = ctypes.WinDLL("shell32")
+    gdi32 = ctypes.WinDLL("gdi32")
+    shell32.ExtractIconExW.argtypes = [wintypes.LPCWSTR, ctypes.c_int, ctypes.POINTER(wintypes.HICON),
+                                       ctypes.POINTER(wintypes.HICON), wintypes.UINT]
+    user32.DrawIconEx.argtypes = [wintypes.HDC, ctypes.c_int, ctypes.c_int, wintypes.HICON, ctypes.c_int,
+                                  ctypes.c_int, wintypes.UINT, wintypes.HBRUSH, wintypes.UINT]
+    user32.DestroyIcon.argtypes = [wintypes.HICON]
+    gdi32.CreateCompatibleDC.argtypes = [wintypes.HDC]
+    gdi32.CreateCompatibleDC.restype = wintypes.HDC
+    gdi32.CreateDIBSection.argtypes = [wintypes.HDC, ctypes.c_void_p, wintypes.UINT,
+                                       ctypes.POINTER(ctypes.c_void_p), wintypes.HANDLE, wintypes.DWORD]
+    gdi32.CreateDIBSection.restype = wintypes.HBITMAP
+    gdi32.SelectObject.argtypes = [wintypes.HDC, wintypes.HGDIOBJ]
+    gdi32.SelectObject.restype = wintypes.HGDIOBJ
+    gdi32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
+    gdi32.DeleteDC.argtypes = [wintypes.HDC]
+
+    class _BITMAPINFOHEADER(ctypes.Structure):
+        _fields_ = [("biSize", wintypes.DWORD), ("biWidth", wintypes.LONG), ("biHeight", wintypes.LONG),
+                    ("biPlanes", wintypes.WORD), ("biBitCount", wintypes.WORD), ("biCompression", wintypes.DWORD),
+                    ("biSizeImage", wintypes.DWORD), ("biXPelsPerMeter", wintypes.LONG),
+                    ("biYPelsPerMeter", wintypes.LONG), ("biClrUsed", wintypes.DWORD),
+                    ("biClrImportant", wintypes.DWORD)]
+
+    @lru_cache(maxsize=256)
+    def _icon_data_url(path: str) -> str | None:
+        """The program's 32x32 icon as a PNG data URL (cached per exe)."""
+        if not path:
+            return None
+        large = wintypes.HICON()
+        if shell32.ExtractIconExW(path, 0, ctypes.byref(large), None, 1) < 1 or not large:
+            return None
+        size = 32
+        hdc = gdi32.CreateCompatibleDC(None)
+        bits = ctypes.c_void_p()
+        bmi = _BITMAPINFOHEADER(ctypes.sizeof(_BITMAPINFOHEADER), size, -size, 1, 32, 0, 0, 0, 0, 0, 0)
+        hbmp = gdi32.CreateDIBSection(hdc, ctypes.byref(bmi), 0, ctypes.byref(bits), None, 0)
+        try:
+            if not hbmp or not bits:
+                return None
+            old = gdi32.SelectObject(hdc, hbmp)
+            user32.DrawIconEx(hdc, 0, 0, large, size, size, 0, None, 0x0003)  # DI_NORMAL
+            gdi32.SelectObject(hdc, old)
+            raw = ctypes.string_at(bits, size * size * 4)
+            import base64
+            import io
+
+            from PIL import Image
+
+            img = Image.frombuffer("RGBA", (size, size), raw, "raw", "BGRA", 0, 1)
+            if img.getchannel("A").getextrema()[1] == 0:  # legacy icon without alpha
+                img.putalpha(255)
+            buf = io.BytesIO()
+            img.save(buf, "PNG", optimize=True)
+            return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+        except Exception:  # noqa: BLE001 - an icon is cosmetic
+            return None
+        finally:
+            if hbmp:
+                gdi32.DeleteObject(hbmp)
+            gdi32.DeleteDC(hdc)
+            user32.DestroyIcon(large)
+
     def _enum() -> list[int]:
         handles: list[int] = []
 
@@ -192,27 +260,42 @@ if sys.platform == "win32":
                 maximized=bool(user32.IsZoomed(hwnd)),
                 focused=hwnd == fg,
                 protected=exe in PROTECTED or not exe,
+                icon=_icon_data_url(path),
             )))
         return out
 
     def _focus(hwnd: int) -> None:
-        if user32.IsIconic(hwnd):
-            user32.ShowWindow(hwnd, SW_RESTORE)
-        fg = user32.GetForegroundWindow()
-        me = kernel32.GetCurrentThreadId()
-        target = user32.GetWindowThreadProcessId(fg, None) if fg else 0
-        attached = bool(target and target != me and user32.AttachThreadInput(me, target, True))
+        """Bring a window to the front despite Windows' focus-stealing prevention.
+
+        The phone is the user's own input device, so this is the user asking. Holding a
+        synthetic Alt while switching is the documented way to satisfy the foreground
+        rules; the topmost toggle is a fallback for stubborn windows.
+        """
+        import time
+
+        user32.keybd_event(VK_MENU, 0, 0, 0)
         try:
-            user32.BringWindowToTop(hwnd)
-            ok = user32.SetForegroundWindow(hwnd)
+            user32.ShowWindow(hwnd, SW_RESTORE if user32.IsIconic(hwnd) else SW_SHOW)
+            fg = user32.GetForegroundWindow()
+            me = kernel32.GetCurrentThreadId()
+            target = user32.GetWindowThreadProcessId(fg, None) if fg else 0
+            attached = bool(target and target != me and user32.AttachThreadInput(me, target, True))
+            try:
+                user32.BringWindowToTop(hwnd)
+                user32.SetForegroundWindow(hwnd)
+            finally:
+                if attached:
+                    user32.AttachThreadInput(me, target, False)
         finally:
-            if attached:
-                user32.AttachThreadInput(me, target, False)
-        if not ok:
-            # Foreground lock: a synthetic Alt tap lets this process change the foreground window.
-            user32.keybd_event(VK_MENU, 0, 0, 0)
             user32.keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0)
-            user32.SetForegroundWindow(hwnd)
+        for _ in range(10):
+            if user32.GetForegroundWindow() == hwnd:
+                return
+            time.sleep(0.03)
+        flags = SWP_NOMOVE | SWP_NOSIZE
+        user32.SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, flags)
+        user32.SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, flags | SWP_SHOWWINDOW)
+        user32.SetForegroundWindow(hwnd)
 
     def window_action(hwnd: int, action: str) -> dict:
         if action not in ACTIONS:

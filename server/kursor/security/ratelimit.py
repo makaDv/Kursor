@@ -1,9 +1,12 @@
-"""In-memory brute-force guard and token-bucket rate limiter."""
+"""Brute-force guard (lockouts persisted to disk) and token-bucket rate limiter."""
 
 from __future__ import annotations
 
+import json
+import os
 import threading
 import time
+from pathlib import Path
 from collections import deque
 from dataclasses import dataclass, field
 
@@ -24,13 +27,42 @@ class LoginGuard:
     Each further lockout doubles the duration (capped at ``max_lockout``).
     """
 
-    def __init__(self, max_failed: int = 5, window: int = 900, base_lockout: int = 900, max_lockout: int = 86_400):
+    def __init__(self, max_failed: int = 5, window: int = 900, base_lockout: int = 900, max_lockout: int = 86_400,
+                 path: Path | None = None):
         self.max_failed = max_failed
         self.window = window
         self.base_lockout = base_lockout
         self.max_lockout = max_lockout
         self._entries: dict[str, _Entry] = {}
         self._lock = threading.Lock()
+        # Active lockouts survive a restart of PadLink (otherwise restarting would reset them).
+        self.path = path
+        self._load()
+
+    def _load(self) -> None:
+        if not self.path:
+            return
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        now = time.time()
+        for key, (locked_until, lockouts) in (data.get("locked") or {}).items():
+            if isinstance(key, str) and float(locked_until) > now:
+                self._entries[key] = _Entry(locked_until=float(locked_until), lockouts=int(lockouts), touched=now)
+
+    def _persist(self) -> None:
+        """Write active lockouts (caller holds the lock)."""
+        if not self.path:
+            return
+        now = time.time()
+        locked = {k: [e.locked_until, e.lockouts] for k, e in self._entries.items() if e.locked_until > now}
+        tmp = self.path.with_suffix(".tmp")
+        try:
+            tmp.write_text(json.dumps({"locked": locked}), encoding="utf-8")
+            os.replace(tmp, self.path)
+        except OSError:
+            pass
 
     def _prune(self, now: float) -> None:
         if len(self._entries) < MAX_TRACKED_KEYS:
@@ -62,6 +94,7 @@ class LoginGuard:
                 entry.lockouts += 1
                 entry.locked_until = now + duration
                 entry.failures.clear()
+                self._persist()
                 return int(duration)
             return 0
 
@@ -72,7 +105,8 @@ class LoginGuard:
 
     def success(self, key: str) -> None:
         with self._lock:
-            self._entries.pop(key, None)
+            if self._entries.pop(key, None) is not None:
+                self._persist()
 
 
 class RateLimiter:

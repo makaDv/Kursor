@@ -8,8 +8,19 @@
 import { forgetSession, getAccessToken, refresh } from './api'
 import { wsUrl } from './platform'
 import { openSocket, type SocketLike } from './transport'
+import { maybeRediscover } from './pc'
 
-export type SocketStatus = 'idle' | 'connecting' | 'open' | 'offline' | 'paused' | 'revoked' | 'untrusted'
+export type SocketStatus =
+  | 'idle'
+  | 'connecting'
+  | 'open'
+  | 'offline'
+  | 'paused'
+  | 'approval' // waiting for "Allow" on the PC
+  | 'denied' // the PC user refused this connection
+  | 'forbidden' // this device lacks the permission (e.g. screen)
+  | 'revoked'
+  | 'untrusted'
 
 export interface Monitor {
   index: number
@@ -80,12 +91,24 @@ export class KursorSocket {
     window.clearInterval(this.pingTimer)
   }
 
+  private failures = 0
+
   private scheduleRetry(status: SocketStatus = 'offline') {
     if (this.stopped) return
     this.setStatus(status)
     window.clearTimeout(this.retryTimer)
     this.retryTimer = window.setTimeout(() => void this.connect(), this.backoff)
     this.backoff = Math.min(MAX_BACKOFF, this.backoff * 2)
+    // PC unreachable for a while: maybe its IP changed (DHCP). Look for it on the LAN.
+    if (status === 'offline' && ++this.failures % 3 === 0) {
+      void maybeRediscover().then((moved) => {
+        if (moved && !this.stopped) {
+          window.clearTimeout(this.retryTimer)
+          this.backoff = 500
+          void this.connect()
+        }
+      })
+    }
   }
 
   private scheduleReauth(exp: number) {
@@ -138,9 +161,12 @@ export class KursorSocket {
       if (msg.t === 'ready') {
         this.backoff = 500
         if (Array.isArray(msg.monitors)) this.monitors = msg.monitors as Monitor[]
+        this.failures = 0
         this.setStatus('open')
         this.scheduleReauth(Number(msg.exp))
         this.pingTimer = window.setInterval(() => this.send({ t: 'ping', ts: Date.now() }), 15_000)
+      } else if (msg.t === 'approval_pending') {
+        this.setStatus('approval')
       } else if (msg.t === 'reauth_ok') {
         this.scheduleReauth(Number(msg.exp))
       }
@@ -159,6 +185,17 @@ export class KursorSocket {
       if (code === 4409) {
         forgetSession()
         this.setStatus('revoked')
+        return
+      }
+      if (reason === 'denied') {
+        // Refused on the PC: try again only much later (the user can retry manually).
+        this.backoff = MAX_BACKOFF * 3
+        this.scheduleRetry('denied')
+        this.backoff = MAX_BACKOFF
+        return
+      }
+      if (reason === 'no_permission') {
+        this.setStatus('forbidden')
         return
       }
       if (code === 4423) {

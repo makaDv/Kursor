@@ -65,9 +65,15 @@ class PairingManager:
             )
         return PairingSession(pin=pin, code=code, expires_at=expires)
 
+    def _end(self) -> None:
+        """Pairing window over (used, exhausted, closed, expired): remove every trace."""
+        self.path.unlink(missing_ok=True)
+        # QR image written by `python -m kursor pair`: it contains a live secret.
+        (self.path.parent / "pairing-qr.png").unlink(missing_ok=True)
+
     def close(self) -> None:
         with self._lock:
-            self.path.unlink(missing_ok=True)
+            self._end()
 
     def active_until(self) -> float | None:
         data = read_json(self.path, None)
@@ -83,15 +89,17 @@ class PairingManager:
         with self._lock:
             data = read_json(self.path, None)
             if not data or time.time() > data.get("expires_at", 0):
+                if data:
+                    self._end()
                 return PairResult.NO_SESSION
             pin_ok = hmac.compare_digest(mac, data.get("pin_mac", ""))
             code_ok = hmac.compare_digest(mac, data.get("code_mac", ""))
             if pin_ok or code_ok:
-                self.path.unlink(missing_ok=True)  # single use
+                self._end()  # single use
                 return PairResult.OK
             data["failed"] = int(data.get("failed", 0)) + 1
             if data["failed"] >= self.max_failed:
-                self.path.unlink(missing_ok=True)
+                self._end()
                 return PairResult.EXHAUSTED
             atomic_write_json(self.path, data)
             return PairResult.INVALID

@@ -24,6 +24,10 @@ from ..fsutil import atomic_write_json, mtime_ns, read_json
 
 REUSE_GRACE_SECONDS = 15
 
+# Per-device permissions, set from the PC window. Mouse/keyboard are always allowed.
+PERMISSIONS = ("screen", "apps", "clipboard", "power")
+DEFAULT_PERMS = {p: True for p in PERMISSIONS}
+
 
 class RefreshError(Exception):
     def __init__(self, reason: str, device_id: str | None = None):
@@ -40,6 +44,10 @@ class DeviceInfo:
     last_seen: float
     last_ip: str
     user_agent: str
+    perms: dict[str, bool]
+
+    def can(self, perm: str) -> bool:
+        return bool(self.perms.get(perm, True))
 
     def public(self) -> dict[str, Any]:
         return {
@@ -49,6 +57,7 @@ class DeviceInfo:
             "last_seen": self.last_seen,
             "last_ip": self.last_ip,
             "user_agent": self.user_agent,
+            "perms": dict(self.perms),
         }
 
 
@@ -92,6 +101,7 @@ class DeviceStore:
             last_seen=d.get("last_seen", 0),
             last_ip=d.get("last_ip", ""),
             user_agent=d.get("user_agent", ""),
+            perms={**DEFAULT_PERMS, **(d.get("perms") or {})},
         )
 
     def list(self) -> list[DeviceInfo]:
@@ -99,6 +109,12 @@ class DeviceStore:
             self._reload()
             items = [self._info(k, v) for k, v in self._devices.items()]
         return sorted(items, key=lambda d: d.created_at)
+
+    def get(self, device_id: str) -> DeviceInfo | None:
+        with self._lock:
+            self._reload()
+            d = self._devices.get(device_id)
+            return self._info(device_id, d) if d is not None else None
 
     def exists(self, device_id: str) -> bool:
         with self._lock:
@@ -183,6 +199,23 @@ class DeviceStore:
             dev["last_seen"] = time.time()
             dev["last_ip"] = ip
             self._save()
+
+    def set_perms(self, device_id: str, perms: dict[str, bool]) -> bool:
+        with self._lock:
+            self._reload()
+            dev = self._devices.get(device_id)
+            if dev is None:
+                return False
+            dev["perms"] = {p: bool(perms.get(p, True)) for p in PERMISSIONS}
+            self._save()
+            return True
+
+    def stale(self, max_age_seconds: float) -> list[str]:
+        """Devices not seen for longer than ``max_age_seconds``."""
+        cutoff = time.time() - max_age_seconds
+        with self._lock:
+            self._reload()
+            return [k for k, v in self._devices.items() if v.get("last_seen", 0) < cutoff]
 
     def revoke(self, device_id: str) -> bool:
         with self._lock:

@@ -350,6 +350,154 @@ public class KursorNativePlugin extends Plugin {
         call.resolve();
     }
 
+    // ---- biometric unlock ------------------------------------------------------------------
+    private static final int AUTHENTICATORS =
+        androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
+            | androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL;
+
+    @PluginMethod
+    public void biometricAvailable(PluginCall call) {
+        int r = androidx.biometric.BiometricManager.from(getContext()).canAuthenticate(AUTHENTICATORS);
+        JSObject ret = new JSObject();
+        ret.put("available", r == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void biometricAuth(final PluginCall call) {
+        final String reason = call.getString("reason", "Sblocca PadLink");
+        getActivity().runOnUiThread(() -> {
+            try {
+                androidx.biometric.BiometricPrompt prompt = new androidx.biometric.BiometricPrompt(
+                    (androidx.fragment.app.FragmentActivity) getActivity(),
+                    androidx.core.content.ContextCompat.getMainExecutor(getContext()),
+                    new androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                        @Override
+                        public void onAuthenticationSucceeded(androidx.biometric.BiometricPrompt.AuthenticationResult r) {
+                            JSObject ret = new JSObject();
+                            ret.put("ok", true);
+                            call.resolve(ret);
+                        }
+
+                        @Override
+                        public void onAuthenticationError(int code, CharSequence msg) {
+                            JSObject ret = new JSObject();
+                            ret.put("ok", false);
+                            ret.put("error", String.valueOf(msg));
+                            call.resolve(ret);
+                        }
+                    });
+                prompt.authenticate(new androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("PadLink")
+                    .setSubtitle(reason)
+                    .setAllowedAuthenticators(AUTHENTICATORS)
+                    .build());
+            } catch (Exception e) {
+                call.reject("biometric unavailable", "unavailable");
+            }
+        });
+    }
+
+    // ---- LAN discovery / Wake-on-LAN ---------------------------------------------------------
+    @PluginMethod
+    public void discover(final PluginCall call) {
+        long timeout = Math.max(500, Math.min(10_000, call.getInt("timeout", 3000)));
+        Extras.discover(getContext(), timeout, found -> {
+            com.getcapacitor.JSArray arr = new com.getcapacitor.JSArray();
+            for (Extras.Found f : found) {
+                JSObject o = new JSObject();
+                o.put("host", f.host);
+                o.put("port", f.port);
+                o.put("fp", f.fp);
+                o.put("name", f.name);
+                arr.put(o);
+            }
+            JSObject ret = new JSObject();
+            ret.put("pcs", arr);
+            call.resolve(ret);
+        });
+    }
+
+    @PluginMethod
+    public void wakeOnLan(final PluginCall call) {
+        final String mac = call.getString("mac");
+        new Thread(() -> {
+            try {
+                Extras.wakeOnLan(mac == null ? "" : mac);
+                call.resolve();
+            } catch (Exception e) {
+                call.reject("wake-on-lan failed", "network");
+            }
+        }).start();
+    }
+
+    // ---- store review --------------------------------------------------------------------------
+    @PluginMethod
+    public void requestReview(final PluginCall call) {
+        final com.google.android.play.core.review.ReviewManager manager =
+            com.google.android.play.core.review.ReviewManagerFactory.create(getContext());
+        manager.requestReviewFlow().addOnCompleteListener(task -> {
+            if (!task.isSuccessful()) {
+                call.resolve();
+                return;
+            }
+            manager.launchReviewFlow(getActivity(), task.getResult()).addOnCompleteListener(t -> call.resolve());
+        });
+    }
+
+    // ---- hardware volume keys as PC volume (opt-in, only while the app is in front) ---------------
+    private static volatile KursorNativePlugin instance;
+    private static volatile boolean captureVolume = false;
+
+    @PluginMethod
+    public void setVolumeKeyCapture(PluginCall call) {
+        instance = this;
+        captureVolume = Boolean.TRUE.equals(call.getBoolean("enabled", false));
+        call.resolve();
+    }
+
+    /** Called by MainActivity.dispatchKeyEvent; returns true if the key was consumed. */
+    public static boolean onVolumeKey(int keyCode, boolean down) {
+        KursorNativePlugin p = instance;
+        if (!captureVolume || p == null) return false;
+        if (keyCode != android.view.KeyEvent.KEYCODE_VOLUME_UP && keyCode != android.view.KeyEvent.KEYCODE_VOLUME_DOWN) {
+            return false;
+        }
+        if (down) {
+            JSObject ev = new JSObject();
+            ev.put("key", keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP ? "up" : "down");
+            p.notifyListeners("volumeKey", ev);
+        }
+        return true;
+    }
+
+    // ---- launcher shortcuts (padlink://tab/<name>) ------------------------------------------------
+    private static String tabFrom(android.content.Intent intent) {
+        if (intent == null || intent.getData() == null) return null;
+        android.net.Uri u = intent.getData();
+        if (!"padlink".equals(u.getScheme()) || !"tab".equals(u.getHost())) return null;
+        String tab = u.getLastPathSegment();
+        return tab != null && tab.matches("^[a-z]{1,16}$") ? tab : null;
+    }
+
+    @PluginMethod
+    public void getLaunchTab(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("tab", tabFrom(getActivity().getIntent()));
+        call.resolve(ret);
+    }
+
+    @Override
+    protected void handleOnNewIntent(android.content.Intent intent) {
+        super.handleOnNewIntent(intent);
+        String tab = tabFrom(intent);
+        if (tab != null) {
+            JSObject ev = new JSObject();
+            ev.put("tab", tab);
+            notifyListeners("launchTab", ev);
+        }
+    }
+
     // ---- QR scanner ------------------------------------------------------------------------
     @PluginMethod
     public void scanQr(PluginCall call) {

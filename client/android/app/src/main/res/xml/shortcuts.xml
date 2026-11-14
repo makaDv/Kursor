@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon: jump straight to a tab (KursorNative.getLaunchTab). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="trackpad" android:enabled="true" android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_trackpad">
+        <intent android:action="android.intent.action.VIEW" android:data="padlink://tab/trackpad"
+            android:targetPackage="io.github.makadv.padlink" android:targetClass="io.github.makadv.padlink.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="keyboard" android:enabled="true" android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_keyboard">
+        <intent android:action="android.intent.action.VIEW" android:data="padlink://tab/keyboard"
+            android:targetPackage="io.github.makadv.padlink" android:targetClass="io.github.makadv.padlink.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="screen" android:enabled="true" android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_screen">
+        <intent android:action="android.intent.action.VIEW" android:data="padlink://tab/screen"
+            android:targetPackage="io.github.makadv.padlink" android:targetClass="io.github.makadv.padlink.MainActivity" />
+    </shortcut>
+</shortcuts>

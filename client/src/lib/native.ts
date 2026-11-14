@@ -39,7 +39,28 @@ export interface KursorNativePlugin {
 
   scanQr(): Promise<{ value: string | null }>
 
+  /** Fingerprint / face / device PIN (Android BiometricPrompt, iOS LocalAuthentication). */
+  biometricAvailable(): Promise<{ available: boolean }>
+  biometricAuth(o: { reason: string }): Promise<{ ok: boolean; error?: string }>
+
+  /** mDNS browse for PadLink PCs on the LAN (_padlink._tcp). */
+  discover(o: { timeout?: number }): Promise<{ pcs: { host: string; port: number; fp: string | null; name: string | null }[] }>
+
+  /** Wake-on-LAN magic packet (Android only; iOS rejects with code "unsupported"). */
+  wakeOnLan(o: { mac: string }): Promise<void>
+
+  /** Native store rating dialog (Play In-App Review / SKStoreReviewController). */
+  requestReview(): Promise<void>
+
+  /** Android: hardware volume keys emit "volumeKey" instead of changing the phone volume. */
+  setVolumeKeyCapture(o: { enabled: boolean }): Promise<void>
+
+  /** Tab requested by a launcher shortcut / quick action, if the app was opened from one. */
+  getLaunchTab(): Promise<{ tab: string | null }>
+
   addListener(event: 'ws', fn: (ev: NativeWsEvent) => void): Promise<PluginListenerHandle>
+  addListener(event: 'volumeKey', fn: (ev: { key: 'up' | 'down' }) => void): Promise<PluginListenerHandle>
+  addListener(event: 'launchTab', fn: (ev: { tab: string }) => void): Promise<PluginListenerHandle>
 }
 
 export const KursorNative = registerPlugin<KursorNativePlugin>('KursorNative')

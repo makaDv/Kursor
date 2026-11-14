@@ -15,8 +15,10 @@ $py = Join-Path $root 'server\.venv\Scripts\python.exe'
 if (-not (Test-Path $py)) { python -m venv server\.venv }
 & $py -m pip install --upgrade pip
 # Release builds use exact, tested versions (server\requirements.lock, refresh with pip freeze).
-if (Test-Path server\requirements.lock) { & $py -m pip install -r server\requirements.lock }
-else { & $py -m pip install -r server\requirements.txt -r server\requirements-desktop.txt }
+# zeroconf without compiled extensions: unsigned .pyd files are blocked by Smart App Control.
+$env:SKIP_CYTHON = '1'
+if (Test-Path server\requirements.lock) { & $py -m pip install --no-binary zeroconf -r server\requirements.lock }
+else { & $py -m pip install --no-binary zeroconf -r server\requirements.txt -r server\requirements-desktop.txt }
 
 Write-Host '== licenses'
 & $py scripts\collect_licenses.py

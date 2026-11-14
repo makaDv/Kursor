@@ -18,6 +18,39 @@
   --color-muted: #94a3b8;
 }
 
+/*
+ * Light theme (Altro > Aspetto, or automatic with the system setting). It remaps the
+ * same tokens plus the gray/white scale used for text and hairlines, so every
+ * component follows without per-component variants.
+ */
+:root[data-theme='light'] {
+  --color-ink-950: #f6f7fb;
+  --color-ink-900: #ffffff;
+  --color-ink-800: #eef0f6;
+  --color-ink-700: #dde1ec;
+  --color-muted: #5b6475;
+  --color-accent-2: #0e7490;
+  --color-gray-50: #0b0f17;
+  --color-gray-100: #111827;
+  --color-gray-200: #1f2937;
+  --color-gray-300: #374151;
+  --color-gray-400: #4b5563;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #9ca3af;
+  --color-red-300: #b91c1c;
+  --color-red-400: #dc2626;
+  --color-amber-300: #b45309;
+  --color-emerald-300: #047857;
+  color-scheme: light;
+}
+:root[data-theme='light'] body {
+  color: #111827;
+}
+:root[data-theme='light'] .btn-primary,
+:root[data-theme='light'] .key-on {
+  color: #ffffff;
+}
+
 html,
 body,
 #root {

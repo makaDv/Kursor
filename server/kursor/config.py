@@ -83,3 +83,11 @@ class Settings:
     @property
     def log_dir(self) -> Path:
         return self.data_dir / "logs"
+
+    @property
+    def lockout_file(self) -> Path:
+        return self.data_dir / "lockouts.json"
+
+    @property
+    def prefs_file(self) -> Path:
+        return self.data_dir / "settings.json"

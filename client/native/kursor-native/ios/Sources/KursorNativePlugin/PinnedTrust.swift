@@ -34,7 +34,9 @@ enum PinnedTrust {
         guard let anchor = chain(trust).first(where: { constantTimeEquals(fingerprint($0), pin) }) else {
             return false
         }
-        SecTrustSetPolicies(trust, SecPolicyCreateSSL(true, host as CFString))
+        // The pinned CA is private to this PC: it is the identity, so the hostname is not checked
+        // (lets the app follow the PC to a new DHCP address found via Bonjour).
+        SecTrustSetPolicies(trust, SecPolicyCreateSSL(true, nil))
         SecTrustSetAnchorCertificates(trust, [anchor] as CFArray)
         SecTrustSetAnchorCertificatesOnly(trust, true)
         return SecTrustEvaluateWithError(trust, nil)

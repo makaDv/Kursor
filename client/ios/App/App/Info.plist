@@ -66,6 +66,39 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>La fotocamera serve solo a leggere il QR code di associazione mostrato da PadLink sul tuo PC. Nessuna immagine viene salvata o inviata.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Face ID protegge l'accesso a PadLink e le azioni importanti, come spegnere il PC.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_padlink._tcp</string>
+	</array>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>padlink.tab.trackpad</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Mouse</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>cursorarrow</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>padlink.tab.keyboard</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Tastiera</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>keyboard</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>padlink.tab.screen</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Schermo</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>display</string>
+		</dict>
+	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>PadLink si collega al tuo PC sulla rete Wi-Fi locale per controllarlo.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>

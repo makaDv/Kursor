@@ -116,10 +116,27 @@ async def authenticate(ws: WebSocket, channel: str) -> WsSession | None:
         return None
 
     device_id, exp = result
+    device = svc.store.get(device_id)
+    if device is None:
+        await ws.close(code=4409, reason="device_revoked")
+        return None
+    if channel == "screen" and not device.can("screen"):
+        await ws.close(code=4403, reason="no_permission")
+        return None
+
+    # Optional "ask on the PC" mode: the PC user allows each device once per session.
+    if device_id not in svc.approved and svc.prefs and svc.prefs.value.require_approval and svc.approver_available:
+        await _send(ws, {"t": "approval_pending"})
+        if not await svc.request_approval(device_id):
+            audit("ws_denied_on_pc", logging.WARNING, device=device_id, ip=ip, channel=channel)
+            await ws.close(code=4403, reason="denied")
+            return None
+
     svc.registry.add(device_id, ws)
     svc.store.touch(device_id, ip)
     audit("ws_connect", device=device_id, ip=ip, channel=channel)
-    await _send(ws, {"t": "ready", "exp": exp, "monitors": svc.monitors()})
+    await _send(ws, {"t": "ready", "exp": exp, "monitors": svc.monitors(), "perms": device.perms,
+                     "pc": {"name": svc.pc_name, "mac": svc.pc_mac}})
     return WsSession(device_id, exp, ip)
 
 

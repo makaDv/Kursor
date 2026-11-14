@@ -194,6 +194,15 @@ class ServerThread(threading.Thread):
 
 
 # ---- UI ---------------------------------------------------------------------------------------
+PERM_LABELS = {"screen": "Schermo", "apps": "App", "clipboard": "Appunti", "power": "Spegnimento"}
+PERM_HELP = {
+    "screen": "vedere lo schermo del PC",
+    "apps": "vedere e gestire le finestre aperte",
+    "clipboard": "leggere e scrivere gli appunti",
+    "power": "bloccare, sospendere, spegnere, terminare programmi",
+}
+
+
 def _ago(ts: float) -> str:
     s = max(0, time.time() - ts)
     if s < 60:
@@ -222,6 +231,10 @@ class DesktopApp:
         self.tray = None
         self.hidden_hint_shown = False
         self.quitting = False
+        self.prompted: set[str] = set()       # approval dialogs already on screen
+        self.public_network = False
+        self.update_info = None
+        self.svc.approver_available = True    # this window can answer "ask on the PC" requests
 
         self.root = tk.Tk()
         self.root.title(APP_NAME)
@@ -246,6 +259,7 @@ class DesktopApp:
         elif not self.svc.store.list():
             self.new_pairing()  # first launch: nothing paired yet, show the QR right away
         self.root.after(200, self._tick)
+        threading.Thread(target=self._background_checks, name="padlink-checks", daemon=True).start()
 
     # -- layout --------------------------------------------------------------------------
     # Same design tokens as the phone app (client/src/index.css): ink surfaces, indigo
@@ -284,6 +298,13 @@ class DesktopApp:
         tk.Label(names, text="Controlla questo PC dal telefono", bg=BG, fg=MUTED, font=(FONT, 9)).pack(anchor="w")
         self.listen_lbl = tk.Label(head, text="", bg=BG, fg=MUTED, font=(FONT, 9))
         self.listen_lbl.pack(side="right", anchor="n", pady=(4, 0))
+
+        # Warning banner (public network, update available): hidden unless needed.
+        self.banner = tk.Frame(self.body, bg="#3b2f12")
+        self.banner_lbl = tk.Label(self.banner, text="", bg="#3b2f12", fg="#fcd34d", font=(FONT, 9),
+                                   justify="left", anchor="w", wraplength=440)
+        self.banner_lbl.pack(side="left", fill="x", expand=True, padx=12, pady=8)
+        self.banner_btn = _button(self.banner, "", lambda: None, "warn")
 
         # Status card: always says whether someone is controlling this PC.
         self.status_card = self._card(self.body, pady=(16, 0))
@@ -345,13 +366,39 @@ class DesktopApp:
         self.dev_canvas.bind("<Configure>", lambda e: self.dev_canvas.itemconfigure(self.dev_window, width=e.width))
         self.dev_canvas.bind("<MouseWheel>", lambda e: self.dev_canvas.yview_scroll(int(-e.delta / 120), "units"))
 
+        # Settings
+        self._section("Sicurezza e opzioni")
+        opts = self._card(self.body)
+        prefs = self.svc.prefs.value
+        self.autostart_var = tk.BooleanVar(value=autostart_enabled())
+        self.approval_var = tk.BooleanVar(value=prefs.require_approval)
+        self.discover_var = tk.BooleanVar(value=prefs.discoverable)
+        for text, var, cmd in (
+                ("Avvia PadLink all'accesso a Windows", self.autostart_var, self._toggle_autostart),
+                ("Chiedi conferma qui sul PC quando un telefono si collega", self.approval_var, self._toggle_approval),
+                ("Fatti ritrovare dall'app se cambia l'indirizzo del PC (rete locale)", self.discover_var,
+                 self._toggle_discovery)):
+            tk.Checkbutton(opts, text=text, variable=var, command=cmd, bg=CARD, fg=FG, selectcolor=CARD2,
+                           activebackground=CARD, activeforeground=FG, font=(FONT, 9), bd=0, highlightthickness=0,
+                           anchor="w").pack(fill="x", padx=12, pady=(6, 0))
+        row = tk.Frame(opts, bg=CARD)
+        row.pack(fill="x", padx=14, pady=(6, 10))
+        tk.Label(row, text="Revoca i telefoni non usati da", bg=CARD, fg=FG, font=(FONT, 9)).pack(side="left")
+        from .prefs import INACTIVE_CHOICES
+
+        labels = {0: "mai", 30: "30 giorni", 90: "90 giorni", 180: "180 giorni"}
+        self.inactive_var = tk.StringVar(value=labels[prefs.inactive_days])
+        menu = tk.OptionMenu(row, self.inactive_var, *[labels[d] for d in INACTIVE_CHOICES],
+                             command=lambda v: self.svc.prefs.update(
+                                 inactive_days={lab: d for d, lab in labels.items()}[v]))
+        menu.configure(bg=CARD2, fg=FG, activebackground=LINE, activeforeground=FG, relief="flat",
+                       highlightthickness=0, bd=0, font=(FONT, 9))
+        menu["menu"].configure(bg=CARD2, fg=FG, activebackground=ACCENT)
+        menu.pack(side="left", padx=8)
+
         # Footer
         foot = tk.Frame(self.body, bg=BG)
         foot.pack(fill="x", pady=(16, 0))
-        self.autostart_var = tk.BooleanVar(value=autostart_enabled())
-        tk.Checkbutton(foot, text="Avvia PadLink all'accesso a Windows", variable=self.autostart_var,
-                       command=self._toggle_autostart, bg=BG, fg=FG, selectcolor=CARD2, activebackground=BG,
-                       activeforeground=FG, font=(FONT, 9), bd=0, highlightthickness=0).pack(side="left")
         _button(foot, "Esci", self.quit, "secondary").pack(side="right")
         links = tk.Frame(self.body, bg=BG)
         links.pack(fill="x", pady=(10, 0))
@@ -427,6 +474,15 @@ class DesktopApp:
         _restyle(self.pause_btn, pause_text, pause_kind)
 
     def _refresh(self) -> None:
+        # Actions performed from phones ("Pixel ha spento il PC"): always tell whoever sits here.
+        while self.svc.events:
+            _ts, text = self.svc.events.popleft()
+            self._notify(text)
+        for dev_id in list(self.svc.approvals):
+            if dev_id not in self.prompted:
+                self.prompted.add(dev_id)
+                self._ask_approval(dev_id)
+        self._render_banner()
         devices = self.svc.store.list()
         names = {d.id: d.name for d in devices}
         connected = set(self.svc.registry.device_ids())
@@ -459,7 +515,8 @@ class DesktopApp:
         self.listen_lbl.configure(text=f"● In ascolto su {base_url(self.settings).split('://', 1)[-1]}",
                                   fg=AMBER if self.svc.paused else GREEN)
 
-        sig = tuple((d.id, d.name, int(d.last_seen) // 60, d.id in connected) for d in devices)
+        sig = tuple((d.id, d.name, int(d.last_seen) // 60, d.id in connected, tuple(sorted(d.perms.items())))
+                    for d in devices)
         if sig != self.devices_sig:
             self.devices_sig = sig
             self._render_devices(devices, connected)
@@ -488,6 +545,11 @@ class DesktopApp:
                      font=(FONT, 9)).pack(anchor="w")
             _button(row, "Revoca", lambda dev_id=d.id, name=d.name: self.revoke(dev_id, name), "danger").pack(
                 side="right")
+            _button(row, "Permessi", lambda dev_id=d.id: self.edit_perms(dev_id), "ghost").pack(side="right", padx=6)
+            limited = [p for p, on in d.perms.items() if not on]
+            if limited:
+                tk.Label(text, text="Limitato: " + ", ".join(PERM_LABELS[p].lower() for p in limited), bg=CARD,
+                         fg=AMBER, font=(FONT, 8)).pack(anchor="w")
         self.dev_rows.update_idletasks()
         height = min(self.dev_rows.winfo_reqheight(), 230)
         self.dev_canvas.configure(height=height, scrollregion=(0, 0, 0, self.dev_rows.winfo_reqheight()))
@@ -529,6 +591,122 @@ class DesktopApp:
             self.audit("device_revoked", device=dev_id, by="desktop")
             self._close_sockets([dev_id], 4409, "revoked")
         self.devices_sig = ()
+
+    # -- approvals / permissions / options -------------------------------------------------
+    def _ask_approval(self, dev_id: str) -> None:
+        name = self.svc.device_name(dev_id)
+        win = tk.Toplevel(self.root, bg=BG)
+        win.title(f"{APP_NAME} · Richiesta di accesso")
+        win.attributes("-topmost", True)
+        win.resizable(False, False)
+        tk.Label(win, text=f"«{name}» vuole controllare questo PC", bg=BG, fg=FG,
+                 font=(FONT_TITLE, 13)).pack(anchor="w", padx=20, pady=(18, 4))
+        tk.Label(win, text="Consenti solo se sei tu o una persona di cui ti fidi.\n"
+                           "La richiesta scade tra 30 secondi.", bg=BG, fg=MUTED, font=(FONT, 9),
+                 justify="left").pack(anchor="w", padx=20)
+        btns = tk.Frame(win, bg=BG)
+        btns.pack(fill="x", padx=20, pady=16)
+
+        def answer(allow: bool) -> None:
+            self.svc.answer_approval(dev_id, allow)
+            self.audit("approval_" + ("granted" if allow else "denied"), device=dev_id, by="desktop")
+            self.prompted.discard(dev_id)
+            win.destroy()
+
+        _button(btns, "Consenti", lambda: answer(True), "primary").pack(side="right")
+        _button(btns, "Rifiuta", lambda: answer(False), "danger").pack(side="right", padx=8)
+        win.protocol("WM_DELETE_WINDOW", lambda: answer(False))
+        win.after(30_000, lambda: win.winfo_exists() and answer(False))
+        self.show()
+        win.lift()
+        self._notify(f"«{name}» chiede di controllare questo PC")
+
+    def edit_perms(self, dev_id: str) -> None:
+        dev = self.svc.store.get(dev_id)
+        if dev is None:
+            return
+        win = tk.Toplevel(self.root, bg=BG)
+        win.title(f"{APP_NAME} · Permessi")
+        win.resizable(False, False)
+        tk.Label(win, text=f"Cosa può fare «{dev.name}»", bg=BG, fg=FG, font=(FONT_TITLE, 13)).pack(
+            anchor="w", padx=20, pady=(18, 2))
+        tk.Label(win, text="Mouse e tastiera sono sempre consentiti.", bg=BG, fg=MUTED, font=(FONT, 9)).pack(
+            anchor="w", padx=20, pady=(0, 8))
+        vars_ = {}
+        for perm, label in PERM_LABELS.items():
+            vars_[perm] = tk.BooleanVar(value=dev.can(perm))
+            tk.Checkbutton(win, text=f"{label} — {PERM_HELP[perm]}", variable=vars_[perm], bg=BG, fg=FG,
+                           selectcolor=CARD2, activebackground=BG, activeforeground=FG, font=(FONT, 10), bd=0,
+                           highlightthickness=0, anchor="w").pack(fill="x", padx=18, pady=2)
+
+        def save() -> None:
+            perms = {k: v.get() for k, v in vars_.items()}
+            self.svc.store.set_perms(dev_id, perms)
+            self.audit("device_permissions", device=dev_id, by="desktop",
+                       denied=",".join(k for k, v in perms.items() if not v) or None)
+            # Reconnect live sessions so the new limits apply immediately (screen stream, UI).
+            self._close_sockets([dev_id], 4401, "permissions_changed")
+            self.devices_sig = ()
+            win.destroy()
+
+        btns = tk.Frame(win, bg=BG)
+        btns.pack(fill="x", padx=20, pady=16)
+        _button(btns, "Salva", save, "primary").pack(side="right")
+        _button(btns, "Annulla", win.destroy, "secondary").pack(side="right", padx=8)
+
+    def _toggle_approval(self) -> None:
+        self.svc.prefs.update(require_approval=self.approval_var.get())
+        self.svc.approved.clear()
+        self.audit("setting_changed", setting="require_approval", value=self.approval_var.get())
+
+    def _toggle_discovery(self) -> None:
+        on = self.discover_var.get()
+        self.svc.prefs.update(discoverable=on)
+        if on:
+            threading.Thread(target=self.rt.start_discovery, daemon=True).start()
+        else:
+            threading.Thread(target=self.rt.stop_discovery, daemon=True).start()
+
+    def _background_checks(self) -> None:
+        """Slow checks off the UI thread: network profile every 5 min, updates once a day."""
+        from . import updates
+        from .netutil import public_network_profile
+
+        last_update = 0.0
+        while not self.quitting:
+            public = public_network_profile()
+            self.ui_queue.put(lambda public=public: setattr(self, "public_network", public))
+            if updates.enabled() and time.time() - last_update > updates.CHECK_INTERVAL_S:
+                last_update = time.time()
+                info = updates.check()
+                if info:
+                    self.ui_queue.put(lambda info=info: (setattr(self, "update_info", info),
+                                                         self._notify(f"Disponibile PadLink {info.version}")))
+            for _ in range(300):
+                if self.quitting:
+                    return
+                time.sleep(1)
+
+    def _render_banner(self) -> None:
+        text, button = "", None
+        if self.update_info is not None:
+            info = self.update_info
+            text = f"È disponibile PadLink {info.version}. Aggiorna per avere le ultime correzioni di sicurezza."
+            button = ("Scarica", lambda: __import__("webbrowser").open(info.url))
+        elif self.public_network:
+            text = ("Questa rete è impostata come «Pubblica» in Windows. Usa PadLink solo su reti di cui ti fidi "
+                    "(casa, ufficio); in luoghi pubblici metti in pausa il controllo.")
+            button = ("Impostazioni rete", lambda: os.startfile("ms-settings:network-status"))  # noqa: S606
+        if not text:
+            self.banner.pack_forget()
+            return
+        self.banner_lbl.configure(text=text)
+        if button:
+            _restyle(self.banner_btn, button[0], "warn")
+            self.banner_btn.configure(command=button[1])
+            self.banner_btn.pack(side="right", padx=10)
+        if not self.banner.winfo_ismapped():
+            self.banner.pack(fill="x", pady=(12, 0), after=self.body.winfo_children()[0])
 
     def toggle_pause(self) -> None:
         self.svc.paused = not self.svc.paused
@@ -746,10 +924,12 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     audit("server_start", version=__version__, host=settings.host, port=settings.port, tls=settings.tls,
           mode="desktop")
+    threading.Thread(target=rt.start_discovery, name="padlink-mdns", daemon=True).start()
     app = DesktopApp(rt, args.minimized)
     try:
         app.run(server)
     finally:
+        rt.stop_discovery()
         server.stop()
         server.join(timeout=5)
     return 0

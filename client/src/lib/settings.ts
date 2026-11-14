@@ -13,6 +13,18 @@ export interface Prefs {
   streamFormat: 'jpeg' | 'webp'
   streamAuto: boolean
   monitor: number
+  /** Appearance & accessibility */
+  theme: 'auto' | 'dark' | 'light'
+  textScale: number
+  leftHanded: boolean
+  lang: 'auto' | 'it' | 'en'
+  /** Security */
+  biometricLock: boolean
+  biometricPower: boolean
+  /** Android: hardware volume keys control the PC volume while the app is open */
+  volumeKeys: boolean
+  /** Recently typed phrases (Tastiera), newest first */
+  phrases: string[]
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -27,6 +39,14 @@ export const DEFAULT_PREFS: Prefs = {
   streamFormat: 'jpeg',
   streamAuto: true,
   monitor: 1,
+  theme: 'auto',
+  textScale: 1,
+  leftHanded: false,
+  lang: 'auto',
+  biometricLock: false,
+  biometricPower: true,
+  volumeKeys: false,
+  phrases: [],
 }
 
 const KEY = 'kursor.prefs.v1'
@@ -77,3 +97,15 @@ export function haptic(ms = 10) {
     }
   }
 }
+
+/** Applies theme and text size to the document (called on boot and whenever prefs change). */
+export function applyAppearance(p: Prefs = current) {
+  const root = document.documentElement
+  const light = p.theme === 'light' || (p.theme === 'auto' && window.matchMedia?.('(prefers-color-scheme: light)').matches)
+  root.dataset.theme = light ? 'light' : 'dark'
+  root.style.fontSize = `${Math.round(16 * Math.min(1.4, Math.max(0.85, p.textScale)))}px`
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', light ? '#f6f7fb' : '#0b0f17')
+}
+
+subs.add(applyAppearance)
+window.matchMedia?.('(prefers-color-scheme: light)').addEventListener?.('change', () => applyAppearance())

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { t } from '../lib/i18n'
 import { haptic } from '../lib/settings'
 
 const HOLD_MS = 1200
@@ -69,10 +70,10 @@ export default function ConfirmDialog(props: {
             className={`absolute inset-y-0 left-0 ${props.danger ? 'bg-red-500' : 'bg-accent'}`}
             style={{ width: `${progress * 100}%` }}
           />
-          <span className="relative">Tieni premuto: {props.confirmLabel}</span>
+          <span className="relative">{t('Tieni premuto: {a}', { a: props.confirmLabel })}</span>
         </button>
         <button className="btn-secondary mt-3 w-full" onClick={props.onCancel}>
-          Annulla
+          {t('Annulla')}
         </button>
       </div>
     </div>
