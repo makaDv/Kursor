@@ -6,6 +6,7 @@
  * survives token rotation without reconnecting.
  */
 import { forgetSession, getAccessToken, refresh } from './api'
+import { wsUrl } from './platform'
 
 export type SocketStatus = 'idle' | 'connecting' | 'open' | 'offline' | 'revoked'
 
@@ -117,8 +118,7 @@ export class KursorSocket {
     }
     if (this.stopped) return
 
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-    const ws = new WebSocket(`${proto}://${location.host}${this.opts.path}`)
+    const ws = new WebSocket(wsUrl(this.opts.path))
     ws.binaryType = 'arraybuffer'
     this.ws = ws
 

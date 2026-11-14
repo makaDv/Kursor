@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ApiError, onAuthChange, refresh } from './lib/api'
+import { isNative } from './lib/platform'
 import { KursorSocket, type SocketStatus } from './lib/socket'
 import PairScreen from './components/PairScreen'
 import Trackpad from './components/Trackpad'
@@ -76,6 +77,11 @@ export default function App() {
         <button className="key px-6" onClick={() => location.reload()}>
           Riprova
         </button>
+        {isNative && (
+          <button className="text-sm text-accent-2" onClick={() => setBoot('unpaired')}>
+            Cambia PC / associa di nuovo
+          </button>
+        )}
       </div>
     )
   }

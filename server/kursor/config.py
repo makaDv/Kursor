@@ -39,6 +39,8 @@ class Settings:
     trust_proxy: bool = False
     # Allow the Vite dev server origins (http://localhost:5173).
     dev: bool = False
+    # Allow the bundled Android app (origin https://localhost).
+    allow_app: bool = True
 
     access_ttl: int = 10 * 60  # seconds
     refresh_ttl: int = 30 * 24 * 3600  # seconds, sliding

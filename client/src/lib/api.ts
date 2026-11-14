@@ -5,7 +5,10 @@
  *   so an XSS bug cannot exfiltrate a long-lived credential from storage.
  * - The refresh token is an HttpOnly + Secure + SameSite=Strict cookie scoped to
  *   /api/auth: JavaScript can never read it. It is rotated on every refresh.
+ * - Android app: cookies would be cross-site, so the server returns the refresh
+ *   token in the body and it is kept in the Keystore-backed SecureStore plugin.
  */
+import { apiUrl, isNative, loadRefreshToken, saveRefreshToken } from './platform'
 
 export class ApiError extends Error {
   status: number
@@ -26,6 +29,7 @@ interface TokenResponse {
   access_token: string
   expires_at: number
   device_id: string
+  refresh_token?: string
 }
 
 type AuthListener = (authed: boolean) => void
@@ -45,6 +49,8 @@ function setAuth(t: TokenResponse | null) {
   accessToken = t?.access_token ?? null
   accessExp = t?.expires_at ?? 0
   deviceId = t?.device_id ?? null
+  if (t?.refresh_token) void saveRefreshToken(t.refresh_token)
+  else if (!t) void saveRefreshToken(null)
   listeners.forEach((fn) => fn(accessToken !== null))
 }
 
@@ -72,9 +78,9 @@ async function parseError(res: Response): Promise<ApiError> {
 async function rawRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   let res: Response
   try {
-    res = await fetch(path, {
+    res = await fetch(apiUrl(path), {
       ...init,
-      credentials: 'same-origin',
+      credentials: isNative ? 'omit' : 'same-origin',
       cache: 'no-store',
       headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
     })
@@ -88,7 +94,7 @@ async function rawRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
 export async function pair(secret: string, deviceName: string): Promise<void> {
   const t = await rawRequest<TokenResponse>('/api/auth/pair', {
     method: 'POST',
-    body: JSON.stringify({ secret, device_name: deviceName }),
+    body: JSON.stringify({ secret, device_name: deviceName, client: isNative ? 'app' : 'web' }),
   })
   setAuth(t)
 }
@@ -96,7 +102,15 @@ export async function pair(secret: string, deviceName: string): Promise<void> {
 /** Exchanges the refresh cookie for a new access token. Concurrent calls share one request. */
 export function refresh(): Promise<boolean> {
   if (!refreshing) {
-    refreshing = rawRequest<TokenResponse>('/api/auth/refresh', { method: 'POST', body: '{}' })
+    refreshing = (async () => {
+      let body = '{}'
+      if (isNative) {
+        const stored = await loadRefreshToken()
+        if (!stored) throw new ApiError(401, 'no_session', 'Sessione assente')
+        body = JSON.stringify({ refresh_token: stored })
+      }
+      return rawRequest<TokenResponse>('/api/auth/refresh', { method: 'POST', body })
+    })()
       .then((t) => {
         setAuth(t)
         return true

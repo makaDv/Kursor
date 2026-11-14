@@ -33,6 +33,8 @@ Kursor/
 │           ├── screen.py      # cattura e codifica JPEG/WebP
 │           └── system.py      # blocco, sospensione, spegnimento
 ├── client/
+│   ├── android/               # progetto Android Studio (Capacitor) + SecureStorePlugin
+│   ├── capacitor.config.ts
 │   ├── public/                # manifest, service worker, icone
 │   └── src/
 │       ├── lib/api.ts         # client HTTP con gestione dei token
@@ -180,7 +182,42 @@ cloudflared tunnel run kursor
 
 `--no-tls` viene rifiutato se `--host` non è loopback, così non si espone per errore HTTP in chiaro sulla LAN.
 
-## 8. Sviluppo
+## 8. App Android (Android Studio / Google Play)
+
+Il client esiste anche come **app Android nativa**, generata con [Capacitor](https://capacitorjs.com) 8.6. Usa lo stesso codice React della PWA e il progetto Android Studio si trova in `client/android/`.
+
+Cosa cambia rispetto alla PWA:
+
+| | PWA | App Android |
+|---|---|---|
+| Origine | quella del PC (`https://IP:8443`) | `https://localhost` (asset inclusi nell'APK), consentita dal server tramite CORS senza credenziali |
+| Refresh token | cookie `HttpOnly` | **Android Keystore**: AES-256-GCM con chiave non esportabile (`SecureStorePlugin.java`). Backup disattivato. |
+| Indirizzo del PC | implicito | si inserisce al primo avvio, oppure si incolla il link del QR |
+| TLS | CA installata sul telefono | stessa CA, accettata tramite `network_security_config.xml`. Il traffico in chiaro è vietato. |
+
+Per rifiutare l'app e accettare solo la PWA, avvia il server con `--no-app`.
+
+### Sviluppo
+```powershell
+cd client
+npm run android:sync     # build web e copia in android/
+npm run android:open     # apre il progetto in Android Studio
+```
+In Android Studio premi ▶ con un telefono collegato (debug USB attivo) o con un emulatore.
+Gradle 9.2.1 è già configurato, quindi la build funziona con il JDK 25 incluso in Android Studio.
+APK di debug da riga di comando: `cd client\android; .\gradlew assembleDebug`. Il file si trova in `app\build\outputs\apk\debug\`.
+
+### Pubblicazione su Google Play
+1. **Scegli l'`appId` definitivo prima del primo upload**: dopo non si può più cambiare. Ora è `io.github.makadv.kursor`, in `client/capacitor.config.ts` e `client/android/app/build.gradle` (`applicationId`, `namespace`). Va bene se pubblichi a nome tuo, altrimenti usa un dominio che possiedi.
+2. Incrementa `versionCode` e `versionName` in `client/android/app/build.gradle` a ogni release.
+3. Android Studio → **Build → Generate Signed App Bundle** → *Android App Bundle* → crea una nuova keystore (`.jks`).
+   **Conserva la keystore e la password fuori dal repository** (`*.jks` è già in `.gitignore`) e fanne un backup: senza, non potrai pubblicare aggiornamenti. Attiva *Play App Signing* nella Console.
+4. In Google Play Console crea l'app e carica il file `.aab`. Compila *Sicurezza dei dati*: nessun dato raccolto, tutto resta tra il telefono e il PC. Aggiungi l'informativa privacy e la classificazione dei contenuti.
+5. Nella scheda dello store spiega che l'app richiede il server Kursor sul PC, così chi la recensisce capisce come funziona.
+
+Rigenerare icone e splash Android dopo modifiche al logo: `server\.venv\Scripts\python scripts\make_icons.py`, poi `npm run android:sync`.
+
+## 9. Sviluppo web
 
 ```powershell
 # terminale 1: backend che accetta l'origine del dev server

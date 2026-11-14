@@ -48,6 +48,8 @@ def _settings_from_args(args: argparse.Namespace) -> Settings:
         s.trust_proxy = True
     if getattr(args, "dev", False):
         s.dev = True
+    if getattr(args, "no_app", False):
+        s.allow_app = False
     if getattr(args, "log_level", None):
         s.log_level = args.log_level
     return s
@@ -259,7 +261,8 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--allow-origin", action="append", help="origine aggiuntiva consentita (ripetibile)")
     r.add_argument("--trust-proxy", action="store_true", help="usa CF-Connecting-IP/X-Forwarded-For da 127.0.0.1")
     r.add_argument("--dev", action="store_true", help="consenti il dev server Vite (porta 5173)")
-    r.add_argument("--no-pair", action="store_true", help="non aprire una finestra di pairing all'avvio")
+    r.add_argument("--no-app", action="store_true", help="rifiuta l'app Android (solo PWA)")
+    r.add_argument("--no-pair",action="store_true", help="non aprire una finestra di pairing all'avvio")
     r.add_argument("--insecure-lan", action="store_true", help=argparse.SUPPRESS)
     r.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     r.set_defaults(func=cmd_run)

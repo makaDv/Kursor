@@ -6,6 +6,11 @@ from urllib.parse import urlsplit
 
 from ..config import Settings
 
+# Origin of the bundled Android app (Capacitor serves its assets from
+# https://localhost inside the WebView). No website can obtain this origin in a
+# phone browser, so allowing it does not open a cross-site hole.
+APP_ORIGINS = ("https://localhost",)
+
 
 def _normalize_origin(origin: str) -> str | None:
     try:
@@ -58,13 +63,16 @@ class OriginPolicy:
                 origins.add(o)
                 hosts.add(_split_host(urlsplit(o).netloc))
 
+        cors: set[str] = set(APP_ORIGINS) if settings.allow_app else set()
         if settings.dev:
             for h in ("localhost", "127.0.0.1", *lan_ips):
                 for scheme in ("http", "https"):
-                    origins.add(f"{scheme}://{h}:5173")
+                    cors.add(f"{scheme}://{h}:5173")
 
         self.allowed_hosts = frozenset(hosts)
-        self.allowed_origins = frozenset(origins)
+        # Cross-origin callers (native app, dev server) also need CORS headers.
+        self.cors_origins = frozenset(cors)
+        self.allowed_origins = frozenset(origins | cors)
 
     def host_ok(self, host_header: str | None) -> bool:
         if not host_header:

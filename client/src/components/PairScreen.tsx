@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, pair } from '../lib/api'
+import { apiUrl, getServer, isNative, normalizeServer, setServer } from '../lib/platform'
 
 function defaultDeviceName() {
   const ua = navigator.userAgent
@@ -24,11 +25,20 @@ function describe(err: unknown): string {
 export default function PairScreen({ initialCode, onPaired }: { initialCode: string | null; onPaired: () => void }) {
   const [pin, setPin] = useState('')
   const [name, setName] = useState(defaultDeviceName)
+  const [server, setServerInput] = useState(() => getServer()?.replace(/^https:\/\//, '') ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const autoTried = useRef(false)
 
-  const submit = async (secret: string) => {
+  const submit = async (secret: string, serverOverride?: string) => {
+    if (isNative) {
+      const origin = normalizeServer(serverOverride ?? server)
+      if (!origin) {
+        setError('Indirizzo del PC non valido (es. 192.168.1.10:8443)')
+        return
+      }
+      setServer(origin)
+    }
     setBusy(true)
     setError(null)
     try {
@@ -53,13 +63,26 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
 
   const digits = pin.replace(/\D/g, '').slice(0, 6)
 
+  // App: pasting the QR link (https://IP:8443/#pair=CODE) fills everything in.
+  const onServerChange = (value: string) => {
+    const m = value.match(/^(https:\/\/[^/#\s]+)\/?#pair=([A-Za-z0-9_-]{6,64})/)
+    if (m) {
+      setServerInput(m[1].replace(/^https:\/\//, ''))
+      void submit(m[2], m[1])
+      return
+    }
+    setServerInput(value)
+  }
+
   return (
     <div className="safe-top safe-bottom flex h-full flex-col items-center justify-center gap-8 overflow-y-auto px-6">
       <div className="flex flex-col items-center gap-3">
         <img src="/icons/icon.svg" alt="" className="h-16 w-16" />
         <h1 className="text-2xl font-semibold">Associa questo dispositivo</h1>
         <p className="max-w-xs text-center text-sm text-gray-400">
-          Inserisci il PIN a 6 cifre mostrato nel terminale del PC, oppure inquadra il QR code.
+          {isNative
+            ? 'Inserisci l’indirizzo e il PIN mostrati nel terminale del PC (oppure incolla il link del QR).'
+            : 'Inserisci il PIN a 6 cifre mostrato nel terminale del PC, oppure inquadra il QR code.'}
         </p>
       </div>
 
@@ -70,6 +93,20 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
           if (digits.length === 6) void submit(digits)
         }}
       >
+        {isNative && (
+          <label className="flex flex-col gap-1 text-xs text-gray-400">
+            Indirizzo del PC
+            <input
+              value={server}
+              inputMode="url"
+              autoCapitalize="off"
+              autoCorrect="off"
+              placeholder="192.168.1.10:8443"
+              onChange={(e) => onServerChange(e.target.value)}
+              className="rounded-xl bg-ink-800 px-3 py-3 font-mono text-base text-gray-100 outline-none focus:ring-2 focus:ring-accent"
+            />
+          </label>
+        )}
         <input
           inputMode="numeric"
           autoComplete="one-time-code"
@@ -102,7 +139,7 @@ export default function PairScreen({ initialCode, onPaired }: { initialCode: str
 
       <p className="max-w-xs text-center text-xs text-gray-500">
         Prima volta? Scarica e installa il{' '}
-        <a href="/ca.crt" className="text-accent-2 underline">
+        <a href={apiUrl('/ca.crt')} target="_blank" rel="noreferrer" className="text-accent-2 underline">
           certificato del PC
         </a>{' '}
         per una connessione cifrata e fidata (istruzioni nel README).

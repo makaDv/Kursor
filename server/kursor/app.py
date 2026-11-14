@@ -10,10 +10,11 @@ import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Literal
 
 import jwt
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -75,11 +76,18 @@ def _clear_refresh_cookie(resp: Response, svc: Services) -> None:
     )
 
 
-def _token_response(svc: Services, device_id: str, refresh_token: str) -> JSONResponse:
+def _token_response(svc: Services, device_id: str, refresh_token: str, app: bool = False) -> JSONResponse:
+    """Browser (PWA): refresh token in an HttpOnly cookie. Native app: in the body,
+    to be kept in the Android Keystore-backed secure store (cookies would be
+    cross-site there and are never sent)."""
     access, exp = svc.tokens.issue_access(device_id)
-    resp = JSONResponse({"access_token": access, "token_type": "bearer", "expires_at": exp, "device_id": device_id})
+    body: dict[str, Any] = {"access_token": access, "token_type": "bearer", "expires_at": exp, "device_id": device_id}
+    if app:
+        body["refresh_token"] = refresh_token
+    resp = JSONResponse(body)
     resp.headers["Cache-Control"] = "no-store"
-    _set_refresh_cookie(resp, svc, refresh_token)
+    if not app:
+        _set_refresh_cookie(resp, svc, refresh_token)
     return resp
 
 
@@ -111,6 +119,7 @@ class PairRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     secret: str = Field(min_length=6, max_length=64)
     device_name: str = Field(min_length=1, max_length=64)
+    client: Literal["web", "app"] = "web"
 
 
 class SystemRequest(BaseModel):
@@ -200,6 +209,18 @@ def create_app(svc: Services) -> FastAPI:
                   ms=round((time.perf_counter() - start) * 1000, 1))
         return response
 
+    # Added after the security middleware so it wraps it and answers preflights.
+    # Only the native app / dev server origins get CORS; no credentials (cookies).
+    if svc.origin.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=sorted(svc.origin.cors_origins),
+            allow_methods=["GET", "POST", "DELETE"],
+            allow_headers=["Authorization", "Content-Type"],
+            allow_credentials=False,
+            max_age=600,
+        )
+
     # ---- public endpoints ---------------------------------------------------------
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
@@ -228,7 +249,7 @@ def create_app(svc: Services) -> FastAPI:
             name = body.device_name.strip() or "Dispositivo"
             device_id, refresh = svc.store.create(name, ip, request.headers.get("user-agent", ""))
             audit("pair_success", device=device_id, name=name, ip=ip)
-            return _token_response(svc, device_id, refresh)
+            return _token_response(svc, device_id, refresh, app=body.client == "app")
 
         # Uniform small random delay on failure slows down automated guessing.
         await asyncio.sleep(0.4 + secrets.randbelow(400) / 1000)
@@ -258,7 +279,16 @@ def create_app(svc: Services) -> FastAPI:
         ip = client_ip(request)
         if not svc.refresh_limiter.allow(ip):
             return error(429, "rate_limited", "Troppe richieste", retry_after=5)
-        token = request.cookies.get(REFRESH_COOKIE)
+        body_token: str | None = None
+        if request.headers.get("content-type", "").startswith("application/json"):
+            try:
+                data = await request.json()
+            except ValueError:
+                data = None
+            if isinstance(data, dict) and isinstance(data.get("refresh_token"), str):
+                body_token = data["refresh_token"]
+        app_client = body_token is not None
+        token = body_token if app_client else request.cookies.get(REFRESH_COOKIE)
         if not token or len(token) > 256:
             return error(401, "no_session", "Sessione assente", clear_cookie=True, svc=svc)
         try:
@@ -270,7 +300,7 @@ def create_app(svc: Services) -> FastAPI:
             if reuse and exc.device_id:
                 await svc.registry.close_device(exc.device_id, 4409, "revoked")
             return error(401, exc.reason, "Sessione non valida, ripeti il pairing", clear_cookie=True, svc=svc)
-        return _token_response(svc, device_id, new_token)
+        return _token_response(svc, device_id, new_token, app=app_client)
 
     @app.post("/api/auth/logout")
     async def logout(ctx: AuthContext = Depends(require_device)) -> Response:

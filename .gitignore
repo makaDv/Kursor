@@ -36,3 +36,8 @@ cert.pem
 Thumbs.db
 .vscode/
 .idea/
+
+# Android signing (never commit)
+*.jks
+*.keystore
+keystore.properties
