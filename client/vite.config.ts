@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -6,8 +6,27 @@ import tailwindcss from '@tailwindcss/vite'
 // WebSocket traffic to it so the browser only ever talks to one origin.
 const backend = process.env.KURSOR_BACKEND ?? 'https://localhost:8443'
 
+// Content-Security-Policy for the bundled store apps (the PWA also gets a stricter
+// header from the server; both apply). Build only: the Vite dev server needs inline scripts.
+// The WebView never talks to the network itself (traffic goes through the native
+// plugin), so 'self' is enough; wss:/https: remain for the PWA's same-host socket.
+const CSP =
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
+  "connect-src 'self' wss: https:; worker-src 'self'; manifest-src 'self'; object-src 'none'; " +
+  "base-uri 'none'; form-action 'self'"
+
+function cspMeta(): Plugin {
+  return {
+    name: 'padlink-csp',
+    apply: 'build',
+    transformIndexHtml: () => [
+      { tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP }, injectTo: 'head-prepend' },
+    ],
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), cspMeta()],
   build: {
     outDir: 'dist',
     sourcemap: false,

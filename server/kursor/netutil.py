@@ -53,6 +53,15 @@ def hostname() -> str:
     return socket.gethostname().lower()
 
 
+def is_lan_peer(ip: str | None) -> bool:
+    """TCP peer on the local network, a VPN (Tailscale/WireGuard) or a local tunnel process.
+
+    Anything else means the PC was exposed to the Internet (port forwarding, UPnP,
+    DMZ): PadLink refuses it, tunnels connect from 127.0.0.1 anyway.
+    """
+    return bool(ip) and (is_private_ipv4(ip) or is_loopback(ip))
+
+
 def is_loopback(ip: str | None) -> bool:
     if not ip:
         return False

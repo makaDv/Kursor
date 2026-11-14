@@ -166,6 +166,7 @@ class DesktopApp:
         self.audit = audit
         self.ui_queue: queue.Queue[Callable[[], None]] = queue.Queue()
         self.connected: set[str] = set()
+        self.viewers: set[str] = set()
         self.devices_sig: tuple = ()
         self.session_expires: float | None = None
         self.qr_photo = None
@@ -343,6 +344,10 @@ class DesktopApp:
         for dev_id in connected - self.connected:
             self._notify(f"{names.get(dev_id, 'Un dispositivo')} sta controllando questo PC")
         self.connected = connected
+        viewers = {d for d, n in list(self.svc.screen_viewers.items()) if n > 0}
+        for dev_id in viewers - self.viewers:
+            self._notify(f"{names.get(dev_id, 'Un dispositivo')} sta guardando il tuo schermo")
+        self.viewers = viewers
 
         if self.svc.paused:
             self.banner_dot.configure(fg=RED)
@@ -351,7 +356,9 @@ class DesktopApp:
         elif connected:
             who = ", ".join(sorted(names.get(i, "?") for i in connected))
             self.banner_dot.configure(fg=GREEN)
-            self.banner_text.configure(text=f"Controllato ora da: {who}")
+            watching = ", ".join(sorted(names.get(i, "?") for i in viewers))
+            self.banner_text.configure(text=f"Controllato ora da: {who}"
+                                       + (f"\nSta guardando lo schermo: {watching}" if watching else ""))
             self.pause_btn.configure(text="Pausa")
         else:
             self.banner_dot.configure(fg=MUTED)

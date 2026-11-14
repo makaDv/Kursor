@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from . import __version__
 from .control import system, windows
 from .logging_setup import audit
-from .netutil import resolve_client_ip
+from .netutil import is_lan_peer, resolve_client_ip
 from .security.pairing import PairResult
 from .security.store import RefreshError
 from .services import Services
@@ -176,6 +176,11 @@ def create_app(svc: Services) -> FastAPI:
         host = request.headers.get("host", "")
         ip = client_ip(request)
         path = request.url.path
+
+        peer = request.client.host if request.client else None
+        if not is_lan_peer(peer):
+            audit("http_rejected_public_peer", logging.WARNING, ip=peer, path=path)
+            return error(403, "lan_only", "PadLink accetta solo connessioni dalla rete locale o da un tunnel")
 
         if not svc.origin.host_ok(host):
             audit("http_rejected_host", logging.WARNING, ip=ip, host=host, path=path)

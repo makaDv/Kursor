@@ -26,6 +26,8 @@ Checklist per Google Play, Apple App Store e la distribuzione del programma Wind
 | **Partita IVA / fisco** | Solo se guadagni | Con l'app gratuita non serve. Se la vendi, Apple e Google ti pagano come sviluppatore e i ricavi vanno dichiarati: chiedi a un commercialista (in Italia di solito serve la P.IVA, regime forfettario). |
 | **Revisione legale di Termini e Privacy** | Prima del lancio | Sono modelli accurati per *come funziona davvero* l'app, ma solo un avvocato può adattarli alla tua situazione. È una spesa una tantum, consigliata. |
 | **Età** | Prima di registrare gli account | Per gli account sviluppatore Google e Apple devi essere maggiorenne. |
+| **Cyber Resilience Act (UE 2024/2847)** | Obbligo di segnalare all'ENISA le vulnerabilità sfruttate attivamente dall'**11 settembre 2026**; requisiti completi dall'11 dicembre 2027 | Si applica ai prodotti software messi sul mercato UE **nell'ambito di un'attività commerciale**. Se PadLink resta gratuito e senza guadagni sei probabilmente escluso; se lo monetizzi, rientri: devi gestire le vulnerabilità (già c'è `SECURITY.md`), dichiarare per quanto tempo fornirai aggiornamenti di sicurezza e segnalare entro 24 ore le falle sfruttate. Da verificare con il legale. |
+| **Controlli di sicurezza prima di ogni rilascio** | Ogni versione | `cd client; npm audit --omit=dev` e `server\.venv\Scripts\python -m pip_audit -r serverequirements.lock`: entrambi devono dare 0 vulnerabilità. Poi rigenera le licenze (`scripts/collect_licenses.py`). |
 | **Responsabilità** | Facoltativo | Le esclusioni di garanzia nei Termini riducono il rischio, ma non lo azzerano per danni causati da difetti gravi. Correggi subito le vulnerabilità segnalate (`SECURITY.md`) e tieni l'app aggiornata. |
 
 ---

@@ -25,7 +25,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from .control.screen import FrameGrabber, StreamParams
 from .logging_setup import audit
-from .netutil import resolve_client_ip
+from .netutil import is_lan_peer, resolve_client_ip
 from .security.ratelimit import LocalBucket
 from .services import Services
 
@@ -79,6 +79,10 @@ async def authenticate(ws: WebSocket, channel: str) -> WsSession | None:
     ip = resolve_client_ip(ws.client.host if ws.client else None, ws.headers, svc.settings.trust_proxy)
     origin = ws.headers.get("origin")
 
+    if not is_lan_peer(ws.client.host if ws.client else None):
+        audit("ws_rejected_public_peer", logging.WARNING, ip=ip, channel=channel)
+        await ws.close(code=4403)
+        return None
     if not svc.origin.host_ok(ws.headers.get("host")) or not svc.origin.origin_ok(origin):
         audit("ws_rejected_origin", logging.WARNING, ip=ip, origin=origin, host=ws.headers.get("host"), channel=channel)
         await ws.close(code=4403)
@@ -217,12 +221,16 @@ async def screen_endpoint(ws: WebSocket) -> None:
                 if not await _handle_reauth(ws, svc, session, msg):
                     return
             elif t == "start":
+                if not state["running"]:
+                    svc.screen_viewers[session.device_id] += 1
                 params.update(msg.get("params") or {})
                 state.update(running=True, quality=params.quality, scale=1.0, acked=state["seq"])
                 grabber.reset()
                 wake.set()
                 audit("stream_start", device=session.device_id, fps=params.fps, quality=params.quality)
             elif t == "stop":
+                if state["running"]:
+                    svc.screen_viewers[session.device_id] -= 1
                 state["running"] = False
             elif t == "config":
                 params.update(msg.get("params") or {})
@@ -297,5 +305,9 @@ async def screen_endpoint(ws: WebSocket) -> None:
         for task in tasks:
             task.cancel()
         svc.registry.remove(session.device_id, ws)
+        if state["running"]:
+            svc.screen_viewers[session.device_id] -= 1
+        if svc.screen_viewers.get(session.device_id, 0) <= 0:
+            svc.screen_viewers.pop(session.device_id, None)
         grabber.close()
         audit("ws_disconnect", device=session.device_id, ip=session.ip, channel="screen")

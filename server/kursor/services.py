@@ -69,6 +69,8 @@ class Services:
     input: InputController
     registry: ConnectionRegistry = field(default_factory=ConnectionRegistry)
     lan_ips: list[str] = field(default_factory=list)
+    # device_id -> number of live screen streams (drives the "watching your screen" indicator).
+    screen_viewers: defaultdict[str, int] = field(default_factory=lambda: defaultdict(int))
     # Set from the desktop app: refuse remote control without unpairing anyone.
     paused: bool = False
     # Event loop running the app (lets the desktop UI thread close sockets).
