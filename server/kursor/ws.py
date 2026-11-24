@@ -25,7 +25,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from .control.screen import FrameGrabber, StreamParams
 from .logging_setup import audit
-from .netutil import is_lan_peer, resolve_client_ip
+from .netutil import is_lan_peer, resolve_client_ip, tailscale_ipv4
 from .security.ratelimit import LocalBucket
 from .services import Services
 
@@ -64,7 +64,7 @@ def _verify(svc: Services, token: Any) -> tuple[str, float] | str:
     if not isinstance(token, str) or len(token) > 4096:
         return "bad_token"
     try:
-        claims = svc.tokens.verify_access(token)
+        claims = svc.tokens.verify_access(token, svc.password.version())
     except jwt.ExpiredSignatureError:
         return "token_expired"
     except jwt.InvalidTokenError:
@@ -136,7 +136,7 @@ async def authenticate(ws: WebSocket, channel: str) -> WsSession | None:
     svc.store.touch(device_id, ip)
     audit("ws_connect", device=device_id, ip=ip, channel=channel)
     await _send(ws, {"t": "ready", "exp": exp, "monitors": svc.monitors(), "perms": device.perms,
-                     "pc": {"name": svc.pc_name, "mac": svc.pc_mac}})
+                     "pc": {"name": svc.pc_name, "mac": svc.pc_mac, "ts": tailscale_ipv4(svc.lan_ips)}})
     return WsSession(device_id, exp, ip)
 
 

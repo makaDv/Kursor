@@ -35,12 +35,52 @@ interface TokenResponse {
 }
 
 type AuthListener = (authed: boolean) => void
+type PasswordListener = (needed: boolean) => void
+
+/** Server answers meaning "ask the user for the PC password" (the session itself is still valid). */
+export const PASSWORD_CODES = new Set(['password_required', 'invalid_password', 'locked_out', 'password_not_set'])
+export const isPasswordError = (err: unknown): err is ApiError =>
+  err instanceof ApiError && PASSWORD_CODES.has(err.code)
 
 let accessToken: string | null = null
 let accessExp = 0
 let deviceId: string | null = null
 let refreshing: Promise<boolean> | null = null
 const listeners = new Set<AuthListener>()
+// PC password: kept only in memory for this app session, never written to storage.
+let sessionPassword: string | null = null
+let passwordNeeded = false
+const pwListeners = new Set<PasswordListener>()
+
+function setPasswordNeeded(needed: boolean) {
+  if (passwordNeeded === needed) return
+  passwordNeeded = needed
+  pwListeners.forEach((fn) => fn(needed))
+}
+
+export function onPasswordNeeded(fn: PasswordListener): () => void {
+  pwListeners.add(fn)
+  return () => pwListeners.delete(fn)
+}
+
+export function isPasswordNeeded() {
+  return passwordNeeded
+}
+
+export function setSessionPassword(pw: string) {
+  sessionPassword = pw
+}
+
+/**
+ * Forgets the PC password and the access token (e.g. after minutes in the background):
+ * the next use asks for the password again. The paired session (refresh token) stays.
+ */
+export function lockSession() {
+  sessionPassword = null
+  accessToken = null
+  accessExp = 0
+  setPasswordNeeded(true)
+}
 
 export function onAuthChange(fn: AuthListener): () => void {
   listeners.add(fn)
@@ -96,31 +136,49 @@ async function rawRequest<T>(path: string, init: { method?: string; body?: strin
   return res.json() as T
 }
 
-export async function pair(secret: string, deviceName: string): Promise<void> {
+export async function pair(secret: string, deviceName: string, password: string): Promise<void> {
   const t = await rawRequest<TokenResponse>('/api/auth/pair', {
     method: 'POST',
-    body: JSON.stringify({ secret, device_name: deviceName, client: isNative ? 'app' : 'web' }),
+    body: JSON.stringify({ secret, password, device_name: deviceName, client: isNative ? 'app' : 'web' }),
   })
+  sessionPassword = password
+  setPasswordNeeded(false)
   setAuth(t)
 }
 
-/** Exchanges the refresh cookie for a new access token. Concurrent calls share one request. */
+/**
+ * Exchanges the refresh token (cookie or secure storage) for a new access token,
+ * proving the PC password. Concurrent calls share one request.
+ * Throws ApiError for network/pin problems and when the PC password is needed
+ * (isPasswordError): the paired session is kept in that case.
+ */
 export function refresh(): Promise<boolean> {
   if (!refreshing) {
     refreshing = (async () => {
-      let body = '{}'
+      const payload: Record<string, string> = {}
       if (isNative) {
         const stored = await loadRefreshToken()
         if (!stored) throw new ApiError(401, 'no_session', t('Sessione assente'))
-        body = JSON.stringify({ refresh_token: stored })
+        payload.refresh_token = stored
       }
-      return rawRequest<TokenResponse>('/api/auth/refresh', { method: 'POST', body })
+      // Without a password the server still tells "password_required" (valid session)
+      // from "no_session", and never spends the refresh token.
+      if (sessionPassword) payload.password = sessionPassword
+      return rawRequest<TokenResponse>('/api/auth/refresh', { method: 'POST', body: JSON.stringify(payload) })
     })()
       .then((t) => {
+        setPasswordNeeded(false)
         setAuth(t)
         return true
       })
       .catch((err: unknown) => {
+        if (isPasswordError(err)) {
+          if (err.code === 'invalid_password') sessionPassword = null
+          accessToken = null
+          accessExp = 0
+          setPasswordNeeded(true)
+          throw err
+        }
         if (err instanceof ApiError && err.status === 401) setAuth(null)
         if (err instanceof ApiError && (err.code === 'network' || err.code === 'pin_mismatch')) throw err
         return false
@@ -155,7 +213,7 @@ export async function authedRequest<T>(
       accessExp = 0
       return call()
     }
-    if (err instanceof ApiError && err.status === 401) setAuth(null)
+    if (err instanceof ApiError && err.status === 401 && !isPasswordError(err)) setAuth(null)
     throw err
   }
 }
@@ -164,11 +222,15 @@ export async function logout(): Promise<void> {
   try {
     await authedRequest('/api/auth/logout', { method: 'POST', body: '{}' })
   } finally {
+    sessionPassword = null
+    setPasswordNeeded(false)
     setAuth(null)
   }
 }
 
 export function forgetSession() {
+  sessionPassword = null
+  setPasswordNeeded(false)
   setAuth(null)
 }
 

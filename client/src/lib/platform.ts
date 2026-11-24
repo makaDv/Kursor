@@ -22,6 +22,8 @@ export interface ServerConfig {
   /** PC name and MAC (Wake-on-LAN), reported by the PC after connecting. */
   name?: string
   mac?: string | null
+  /** Second address of the same PC (Tailscale 100.x), tried when `origin` is unreachable. */
+  alt?: string | null
 }
 
 // Several PCs (home, office) can be paired; one is "current". Everything lives in the
@@ -67,8 +69,8 @@ export function normalizeServer(input: string): string | null {
 
 export const PIN_RE = /^[A-Za-z0-9_-]{43}$/
 
-/** Parses the pairing QR / link: https://IP:8443/#pair=CODE&fp=PIN */
-export function parsePairingLink(text: string): { origin: string; code: string; pin: string | null } | null {
+/** Parses the pairing QR / link: https://IP:8443/#pair=CODE&fp=PIN[&ts=TAILSCALE_IP] */
+export function parsePairingLink(text: string): { origin: string; code: string; pin: string | null; alt: string | null } | null {
   const m = text.trim().match(/^(https:\/\/[^/#\s]+)\/?#(.+)$/)
   if (!m) return null
   const params = new URLSearchParams(m[2])
@@ -76,7 +78,17 @@ export function parsePairingLink(text: string): { origin: string; code: string; 
   const origin = normalizeServer(m[1])
   if (!origin || !code || !/^[A-Za-z0-9_-]{6,64}$/.test(code)) return null
   const fp = params.get('fp')
-  return { origin, code, pin: fp && PIN_RE.test(fp) ? fp : null }
+  const pin = fp && PIN_RE.test(fp) ? fp : null
+  // The Tailscale address is only trusted together with the pinned CA (same certificate).
+  const alt = pin ? tailscaleOrigin(params.get('ts'), origin) : null
+  return { origin, code, pin, alt }
+}
+
+/** https origin for a Tailscale IP (100.64.0.0/10) on the same port as `like`, else null. */
+export function tailscaleOrigin(ip: string | null | undefined, like: string): string | null {
+  if (!ip || !/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}$/.test(ip)) return null
+  const port = new URL(like).port || '8443'
+  return normalizeServer(`${ip}:${port}`)
 }
 
 /** Short human-comparable form of a pin, also shown by the PC ("Codice di verifica"). */
@@ -128,7 +140,11 @@ export async function loadServer(): Promise<ServerConfig | null> {
     const { value } = await KursorNative.secureGet({ key: SERVERS_KEY })
     if (value) {
       const data = JSON.parse(value) as { current: string | null; list: ServerConfig[] }
-      servers = (data.list ?? []).filter(valid).map((c) => ({ ...c, id: c.id ?? serverId(c) }))
+      servers = (data.list ?? []).filter(valid).map((c) => ({
+        ...c,
+        id: c.id ?? serverId(c),
+        alt: c.alt && c.pin && normalizeServer(c.alt) === c.alt ? c.alt : null,
+      }))
       currentId = data.current
     } else {
       // Migrate the single-PC format of earlier versions.
@@ -190,10 +206,11 @@ export async function removeServer(id: string): Promise<ServerConfig | null> {
 }
 
 /** Updates details of the current PC (new address found via mDNS, name/MAC reported by the PC). */
-export async function updateCurrentServer(patch: Partial<Pick<ServerConfig, 'origin' | 'name' | 'mac'>>): Promise<void> {
+export async function updateCurrentServer(patch: Partial<Pick<ServerConfig, 'origin' | 'name' | 'mac' | 'alt'>>): Promise<void> {
   if (!server) return
   const next = { ...server, ...patch }
   if (patch.origin && normalizeServer(patch.origin) !== patch.origin) return
+  if (patch.alt && normalizeServer(patch.alt) !== patch.alt) return
   if (JSON.stringify(next) === JSON.stringify(server)) return
   server = next
   servers = servers.map((c) => (c.id === next.id ? next : c))

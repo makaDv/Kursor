@@ -23,6 +23,8 @@ from typing import Any
 from ..fsutil import atomic_write_json, mtime_ns, read_json
 
 REUSE_GRACE_SECONDS = 15
+# Wrong PC passwords in a row (across IPs) before the device is revoked.
+MAX_PASSWORD_FAILURES = 10
 
 # Per-device permissions, set from the PC window. Mouse/keyboard are always allowed.
 PERMISSIONS = ("screen", "apps", "clipboard", "power")
@@ -170,6 +172,7 @@ class DeviceStore:
             if matches_current:
                 if now > dev.get("refresh_expires", 0):
                     raise RefreshError("expired", device_id)
+                dev["pw_failures"] = 0
                 dev["prev_refresh_hash"] = dev["refresh_hash"]
                 dev["rotated_at"] = now
             elif matches_prev:
@@ -189,6 +192,47 @@ class DeviceStore:
             dev["last_ip"] = ip
             self._save()
         return device_id, new_token
+
+    def peek_refresh(self, token: str) -> str | None:
+        """Device id if ``token`` would be accepted by rotate_refresh, without rotating it.
+
+        Lets the API check the PC password before spending the refresh token.
+        """
+        device_id, sep, _ = token.partition(".")
+        if not sep or not device_id:
+            return None
+        presented = _hash(token)
+        now = time.time()
+        with self._lock:
+            self._reload()
+            dev = self._devices.get(device_id)
+            if dev is None:
+                return None
+            if hmac.compare_digest(presented, dev["refresh_hash"]):
+                return device_id if now <= dev.get("refresh_expires", 0) else None
+            prev = dev.get("prev_refresh_hash") or ""
+            if prev and hmac.compare_digest(presented, prev) and now - dev.get("rotated_at", 0) <= REUSE_GRACE_SECONDS:
+                return device_id
+            return None
+
+    def password_failed(self, device_id: str) -> int:
+        """Count a wrong PC password for this device; revokes it after MAX_PASSWORD_FAILURES.
+
+        Returns the attempts left (0 = the device has just been revoked).
+        """
+        with self._lock:
+            self._reload()
+            dev = self._devices.get(device_id)
+            if dev is None:
+                return 0
+            failures = int(dev.get("pw_failures", 0)) + 1
+            if failures >= MAX_PASSWORD_FAILURES:
+                del self._devices[device_id]
+                self._save()
+                return 0
+            dev["pw_failures"] = failures
+            self._save()
+            return MAX_PASSWORD_FAILURES - failures
 
     def touch(self, device_id: str, ip: str) -> None:
         with self._lock:

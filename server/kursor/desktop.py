@@ -27,6 +27,8 @@ from pathlib import Path
 from tkinter import messagebox, ttk
 from typing import Any, Callable
 
+from .i18n import _
+
 APP_NAME = "PadLink"
 CONSENT_VERSION = 1
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
@@ -96,21 +98,44 @@ _BUTTON_KINDS = {
 }
 
 
+class Label(tk.Label):
+    """tk.Label whose text is translated (see i18n.py)."""
+
+    def __init__(self, master: Any = None, **kw: Any) -> None:
+        if isinstance(kw.get("text"), str):
+            kw["text"] = _(kw["text"])
+        super().__init__(master, **kw)
+
+    def configure(self, cnf: Any = None, **kw: Any) -> Any:  # type: ignore[override]
+        if isinstance(kw.get("text"), str):
+            kw["text"] = _(kw["text"])
+        return super().configure(cnf, **kw)
+
+    config = configure
+
+
+class Checkbutton(tk.Checkbutton):
+    def __init__(self, master: Any = None, **kw: Any) -> None:
+        if isinstance(kw.get("text"), str):
+            kw["text"] = _(kw["text"])
+        super().__init__(master, **kw)
+
+
 def _button(parent: Any, text: str, command: Callable[[], None], kind: str = "secondary") -> tk.Button:
     bg, fg, hover = _BUTTON_KINDS[kind]
-    return tk.Button(parent, text=text, command=command, bg=bg, fg=fg, activebackground=hover,
+    return tk.Button(parent, text=_(text), command=command, bg=bg, fg=fg, activebackground=hover,
                      activeforeground=fg, relief="flat", bd=0, highlightthickness=0, cursor="hand2",
                      font=(FONT, 10, "bold" if kind in ("primary", "warn") else "normal"), padx=14, pady=7)
 
 
 def _restyle(button: tk.Button, text: str, kind: str) -> None:
     bg, fg, hover = _BUTTON_KINDS[kind]
-    button.configure(text=text, bg=bg, fg=fg, activebackground=hover, activeforeground=fg,
+    button.configure(text=_(text), bg=bg, fg=fg, activebackground=hover, activeforeground=fg,
                      font=(FONT, 10, "bold" if kind in ("primary", "warn") else "normal"))
 
 
 def _link(parent: Any, text: str, command: Callable[[], None]) -> tk.Label:
-    lbl = tk.Label(parent, text=text, bg=BG, fg=MUTED, font=(FONT, 9, "underline"), cursor="hand2")
+    lbl = Label(parent, text=text, bg=BG, fg=MUTED, font=(FONT, 9, "underline"), cursor="hand2")
     lbl.bind("<Button-1>", lambda _e: command())
     lbl.bind("<Enter>", lambda _e: lbl.configure(fg=ACCENT2))
     lbl.bind("<Leave>", lambda _e: lbl.configure(fg=MUTED))
@@ -278,7 +303,7 @@ class DesktopApp:
         return card
 
     def _section(self, text: str) -> tk.Label:
-        lbl = tk.Label(self.body, text=text.upper(), bg=BG, fg=MUTED, font=(FONT, 8, "bold"), anchor="w")
+        lbl = Label(self.body, text=_(text).upper(), bg=BG, fg=MUTED, font=(FONT, 8, "bold"), anchor="w")
         lbl.pack(fill="x", pady=(16, 6))
         return lbl
 
@@ -291,17 +316,17 @@ class DesktopApp:
         head.pack(fill="x")
         self.logo_photo = _logo_photo(40)
         if self.logo_photo is not None:
-            tk.Label(head, image=self.logo_photo, bg=BG).pack(side="left", padx=(0, 12))
+            Label(head, image=self.logo_photo, bg=BG).pack(side="left", padx=(0, 12))
         names = tk.Frame(head, bg=BG)
         names.pack(side="left")
-        tk.Label(names, text="PadLink", bg=BG, fg=FG, font=(FONT_TITLE, 17)).pack(anchor="w")
-        tk.Label(names, text="Controlla questo PC dal telefono", bg=BG, fg=MUTED, font=(FONT, 9)).pack(anchor="w")
-        self.listen_lbl = tk.Label(head, text="", bg=BG, fg=MUTED, font=(FONT, 9))
+        Label(names, text="PadLink", bg=BG, fg=FG, font=(FONT_TITLE, 17)).pack(anchor="w")
+        Label(names, text="Controlla questo PC dal telefono", bg=BG, fg=MUTED, font=(FONT, 9)).pack(anchor="w")
+        self.listen_lbl = Label(head, text="", bg=BG, fg=MUTED, font=(FONT, 9))
         self.listen_lbl.pack(side="right", anchor="n", pady=(4, 0))
 
         # Warning banner (public network, update available): hidden unless needed.
         self.banner = tk.Frame(self.body, bg="#3b2f12")
-        self.banner_lbl = tk.Label(self.banner, text="", bg="#3b2f12", fg="#fcd34d", font=(FONT, 9),
+        self.banner_lbl = Label(self.banner, text="", bg="#3b2f12", fg="#fcd34d", font=(FONT, 9),
                                    justify="left", anchor="w", wraplength=440)
         self.banner_lbl.pack(side="left", fill="x", expand=True, padx=12, pady=8)
         self.banner_btn = _button(self.banner, "", lambda: None, "warn")
@@ -312,9 +337,9 @@ class DesktopApp:
         self.status_stripe.pack(side="left", fill="y")
         inner = tk.Frame(self.status_card, bg=CARD)
         inner.pack(side="left", fill="both", expand=True, padx=14, pady=12)
-        self.status_title = tk.Label(inner, text="", bg=CARD, fg=FG, font=(FONT, 11, "bold"), anchor="w")
+        self.status_title = Label(inner, text="", bg=CARD, fg=FG, font=(FONT, 11, "bold"), anchor="w")
         self.status_title.pack(fill="x")
-        self.status_sub = tk.Label(inner, text="", bg=CARD, fg=MUTED, font=(FONT, 9), anchor="w", justify="left",
+        self.status_sub = Label(inner, text="", bg=CARD, fg=MUTED, font=(FONT, 9), anchor="w", justify="left",
                                    wraplength=330)
         self.status_sub.pack(fill="x")
         self.pause_btn = _button(self.status_card, "Pausa", self.toggle_pause, "secondary")
@@ -324,22 +349,22 @@ class DesktopApp:
         self._section("Associa un telefono")
         self.pair_card = self._card(self.body)
         self.pair_idle = tk.Frame(self.pair_card, bg=CARD)
-        tk.Label(self.pair_idle, text="Installa l'app PadLink sul telefono, poi premi il pulsante:\n"
+        Label(self.pair_idle, text="Installa l'app PadLink sul telefono, poi premi il pulsante:\n"
                                       "comparirà un QR code da inquadrare.", bg=CARD, fg=MUTED,
                  font=(FONT, 10), justify="left", anchor="w").pack(side="left", padx=16, pady=16)
         _button(self.pair_idle, "Associa un telefono", self.new_pairing, "primary").pack(side="right", padx=16)
 
         self.pair_active = tk.Frame(self.pair_card, bg=CARD)
-        self.qr_label = tk.Label(self.pair_active, bg="white", bd=0)
+        self.qr_label = Label(self.pair_active, bg="white", bd=0)
         self.qr_label.pack(side="left", padx=16, pady=16)
         info = tk.Frame(self.pair_active, bg=CARD)
         info.pack(side="left", fill="both", expand=True, pady=16, padx=(0, 16))
         for n, text in ((1, "Apri l'app PadLink"), (2, "Tocca «Scansiona il QR code»"), (3, "Inquadra questo codice")):
             row = tk.Frame(info, bg=CARD)
             row.pack(fill="x", pady=1)
-            tk.Label(row, text=str(n), bg=CARD2, fg=ACCENT2, font=(FONT, 9, "bold"), width=2).pack(side="left")
-            tk.Label(row, text=text, bg=CARD, fg=FG, font=(FONT, 10)).pack(side="left", padx=8)
-        tk.Label(info, text="Senza fotocamera usa questi dati:", bg=CARD, fg=MUTED, font=(FONT, 9),
+            Label(row, text=str(n), bg=CARD2, fg=ACCENT2, font=(FONT, 9, "bold"), width=2).pack(side="left")
+            Label(row, text=text, bg=CARD, fg=FG, font=(FONT, 10)).pack(side="left", padx=8)
+        Label(info, text="Senza fotocamera usa questi dati:", bg=CARD, fg=MUTED, font=(FONT, 9),
                  anchor="w").pack(fill="x", pady=(10, 2))
         self.pin_value = self._kv(info, "PIN", (FONT_MONO, 18, "bold"), FG)
         self.addr_value = self._kv(info, "Indirizzo", (FONT_MONO, 10, "bold"), ACCENT2)
@@ -348,7 +373,7 @@ class DesktopApp:
         self.progress.pack(fill="x", pady=(10, 2))
         foot = tk.Frame(info, bg=CARD)
         foot.pack(fill="x")
-        self.expiry_lbl = tk.Label(foot, text="", bg=CARD, fg=MUTED, font=(FONT, 9))
+        self.expiry_lbl = Label(foot, text="", bg=CARD, fg=MUTED, font=(FONT, 9))
         self.expiry_lbl.pack(side="left")
         _button(foot, "Annulla", self.close_pairing, "ghost").pack(side="right")
         self._render_pairing(None)
@@ -378,15 +403,15 @@ class DesktopApp:
                 ("Chiedi conferma qui sul PC quando un telefono si collega", self.approval_var, self._toggle_approval),
                 ("Fatti ritrovare dall'app se cambia l'indirizzo del PC (rete locale)", self.discover_var,
                  self._toggle_discovery)):
-            tk.Checkbutton(opts, text=text, variable=var, command=cmd, bg=CARD, fg=FG, selectcolor=CARD2,
+            Checkbutton(opts, text=text, variable=var, command=cmd, bg=CARD, fg=FG, selectcolor=CARD2,
                            activebackground=CARD, activeforeground=FG, font=(FONT, 9), bd=0, highlightthickness=0,
                            anchor="w").pack(fill="x", padx=12, pady=(6, 0))
         row = tk.Frame(opts, bg=CARD)
         row.pack(fill="x", padx=14, pady=(6, 10))
-        tk.Label(row, text="Revoca i telefoni non usati da", bg=CARD, fg=FG, font=(FONT, 9)).pack(side="left")
+        Label(row, text="Revoca i telefoni non usati da", bg=CARD, fg=FG, font=(FONT, 9)).pack(side="left")
         from .prefs import INACTIVE_CHOICES
 
-        labels = {0: "mai", 30: "30 giorni", 90: "90 giorni", 180: "180 giorni"}
+        labels = {0: _("mai"), 30: _("30 giorni"), 90: _("90 giorni"), 180: _("180 giorni")}
         self.inactive_var = tk.StringVar(value=labels[prefs.inactive_days])
         menu = tk.OptionMenu(row, self.inactive_var, *[labels[d] for d in INACTIVE_CHOICES],
                              command=lambda v: self.svc.prefs.update(
@@ -395,6 +420,13 @@ class DesktopApp:
                        highlightthickness=0, bd=0, font=(FONT, 9))
         menu["menu"].configure(bg=CARD2, fg=FG, activebackground=ACCENT)
         menu.pack(side="left", padx=8)
+        pw_row = tk.Frame(opts, bg=CARD)
+        pw_row.pack(fill="x", padx=14, pady=(0, 12))
+        self.pw_lbl = Label(pw_row, text="", bg=CARD, fg=FG, font=(FONT, 9), anchor="w")
+        self.pw_lbl.pack(side="left")
+        self.pw_btn = _button(pw_row, "Imposta password", self.set_password, "secondary")
+        self.pw_btn.pack(side="right")
+        self._render_password()
 
         # Footer
         foot = tk.Frame(self.body, bg=BG)
@@ -408,22 +440,86 @@ class DesktopApp:
                 ("Licenze", lambda: self.show_doc("licenses/windows-third-party.txt", "Licenze open source")),
                 ("Registro accessi", self.open_logs))):
             if i:
-                tk.Label(links, text="·", bg=BG, fg=LINE, font=(FONT, 9)).pack(side="left", padx=4)
+                Label(links, text="·", bg=BG, fg=LINE, font=(FONT, 9)).pack(side="left", padx=4)
             _link(links, text, cmd).pack(side="left")
         from . import __version__
 
-        tk.Label(links, text=f"v{__version__}", bg=BG, fg=LINE, font=(FONT, 8)).pack(side="right")
+        Label(links, text=f"v{__version__}", bg=BG, fg=LINE, font=(FONT, 8)).pack(side="right")
 
     def _kv(self, parent: Any, key: str, font: tuple, color: str) -> tk.Label:
         row = tk.Frame(parent, bg=CARD)
         row.pack(fill="x")
-        tk.Label(row, text=key, bg=CARD, fg=MUTED, font=(FONT, 9), width=9, anchor="w").pack(side="left")
-        val = tk.Label(row, text="", bg=CARD, fg=color, font=font, anchor="w")
+        Label(row, text=key, bg=CARD, fg=MUTED, font=(FONT, 9), width=9, anchor="w").pack(side="left")
+        val = Label(row, text="", bg=CARD, fg=color, font=font, anchor="w")
         val.pack(side="left")
         return val
 
+    # -- PC password --
+    def _render_password(self) -> None:
+        if self.svc.password.is_set():
+            self.pw_lbl.configure(text="Password del PC: impostata (l'app la chiede a ogni apertura)", fg=FG)
+            _restyle(self.pw_btn, "Cambia password", "secondary")
+        else:
+            self.pw_lbl.configure(text="Password del PC: non impostata (serve per associare i telefoni)", fg=AMBER)
+            _restyle(self.pw_btn, "Imposta password", "primary")
+
+    def set_password(self, then: Callable[[], None] | None = None) -> None:
+        from .security.password import MIN_LENGTH, PasswordError, validate
+
+        changing = self.svc.password.is_set()
+        win = tk.Toplevel(self.root, bg=BG)
+        win.title(f"{APP_NAME} · {_('Password del PC')}")
+        win.resizable(False, False)
+        win.transient(self.root)
+        Label(win, text="Cambia la password del PC" if changing else "Imposta la password del PC",
+              bg=BG, fg=FG, font=(FONT_TITLE, 13)).pack(anchor="w", padx=20, pady=(18, 2))
+        Label(win, text=_("L'app la chiede a ogni apertura, anche via Tailscale.") + "\n"
+              + _("Almeno {n} caratteri; non usare la password di Windows.").format(n=MIN_LENGTH),
+              bg=BG, fg=MUTED, font=(FONT, 9), justify="left").pack(anchor="w", padx=20, pady=(0, 10))
+        entries = []
+        for text in ("Nuova password", "Ripeti la password"):
+            Label(win, text=text, bg=BG, fg=FG, font=(FONT, 9), anchor="w").pack(fill="x", padx=20)
+            e = tk.Entry(win, show="•", bg=CARD2, fg=FG, insertbackground=FG, relief="flat", font=(FONT, 11), width=32)
+            e.pack(fill="x", padx=20, pady=(2, 8), ipady=4)
+            entries.append(e)
+        err = Label(win, text="", bg=BG, fg=RED, font=(FONT, 9), anchor="w")
+        err.pack(fill="x", padx=20)
+
+        def save(_e: Any = None) -> None:
+            first, second = entries[0].get(), entries[1].get()
+            try:
+                validate(first)
+            except PasswordError as exc:
+                err.configure(text=str(exc))
+                return
+            if first != second:
+                err.configure(text="Le password non coincidono")
+                return
+            self.svc.password.set(first)
+            for e in entries:
+                e.delete(0, "end")
+            self.audit("password_set", by="desktop", changed=changing)
+            self._render_password()
+            win.destroy()
+            if changing:
+                self._notify(_("Password cambiata: i telefoni connessi dovranno reinserirla."))
+            if then is not None:
+                then()
+
+        entries[0].focus_set()
+        entries[1].bind("<Return>", save)
+        btns = tk.Frame(win, bg=BG)
+        btns.pack(fill="x", padx=20, pady=16)
+        _button(btns, "Salva", save, "primary").pack(side="right")
+        _button(btns, "Annulla", win.destroy, "secondary").pack(side="right", padx=8)
+        win.grab_set()
+
     # -- pairing --
     def new_pairing(self) -> None:
+        if not self.svc.password.is_set():
+            # The app asks for this password at pairing and on every start: set it first.
+            self.set_password(then=self.new_pairing)
+            return
         session = self.svc.pairing.new_session()
         self.audit("pairing_opened", source="desktop")
         self._render_pairing(session)
@@ -527,7 +623,7 @@ class DesktopApp:
             child.destroy()
         self.dev_title.configure(text=f"DISPOSITIVI ASSOCIATI ({len(devices)})")
         if not devices:
-            tk.Label(self.dev_rows, text="Nessun dispositivo associato.", bg=CARD, fg=MUTED,
+            Label(self.dev_rows, text="Nessun dispositivo associato.", bg=CARD, fg=MUTED,
                      font=(FONT, 10)).pack(anchor="w", padx=16, pady=16)
         for i, d in enumerate(devices):
             if i:
@@ -538,17 +634,17 @@ class DesktopApp:
             text.pack(side="left", fill="x", expand=True)
             top = tk.Frame(text, bg=CARD)
             top.pack(fill="x")
-            tk.Label(top, text=d.name, bg=CARD, fg=FG, font=(FONT, 10, "bold")).pack(side="left")
+            Label(top, text=d.name, bg=CARD, fg=FG, font=(FONT, 10, "bold")).pack(side="left")
             if d.id in connected:
-                tk.Label(top, text="● connesso", bg=CARD, fg=GREEN, font=(FONT, 9)).pack(side="left", padx=8)
-            tk.Label(text, text=f"Ultimo accesso {_ago(d.last_seen)}", bg=CARD, fg=MUTED,
+                Label(top, text="● connesso", bg=CARD, fg=GREEN, font=(FONT, 9)).pack(side="left", padx=8)
+            Label(text, text=f"Ultimo accesso {_ago(d.last_seen)}", bg=CARD, fg=MUTED,
                      font=(FONT, 9)).pack(anchor="w")
             _button(row, "Revoca", lambda dev_id=d.id, name=d.name: self.revoke(dev_id, name), "danger").pack(
                 side="right")
             _button(row, "Permessi", lambda dev_id=d.id: self.edit_perms(dev_id), "ghost").pack(side="right", padx=6)
             limited = [p for p, on in d.perms.items() if not on]
             if limited:
-                tk.Label(text, text="Limitato: " + ", ".join(PERM_LABELS[p].lower() for p in limited), bg=CARD,
+                Label(text, text=_("Limitato: ") + ", ".join(_(PERM_LABELS[p]).lower() for p in limited), bg=CARD,
                          fg=AMBER, font=(FONT, 8)).pack(anchor="w")
         self.dev_rows.update_idletasks()
         height = min(self.dev_rows.winfo_reqheight(), 230)
@@ -584,8 +680,8 @@ class DesktopApp:
             asyncio.run_coroutine_threadsafe(self.svc.registry.close_device(dev_id, code, reason), loop)
 
     def revoke(self, dev_id: str, name: str) -> None:
-        if not messagebox.askyesno(APP_NAME, f'Revocare "{name}"?\nNon potrà più controllare il PC '
-                                             f"finché non verrà associato di nuovo."):
+        if not messagebox.askyesno(APP_NAME, _(f'Revocare "{name}"?\nNon potrà più controllare il PC '
+                                               f"finché non verrà associato di nuovo.")):
             return
         if self.svc.store.revoke(dev_id):
             self.audit("device_revoked", device=dev_id, by="desktop")
@@ -596,12 +692,12 @@ class DesktopApp:
     def _ask_approval(self, dev_id: str) -> None:
         name = self.svc.device_name(dev_id)
         win = tk.Toplevel(self.root, bg=BG)
-        win.title(f"{APP_NAME} · Richiesta di accesso")
+        win.title(f"{APP_NAME} · {_('Richiesta di accesso')}")
         win.attributes("-topmost", True)
         win.resizable(False, False)
-        tk.Label(win, text=f"«{name}» vuole controllare questo PC", bg=BG, fg=FG,
+        Label(win, text=f"«{name}» vuole controllare questo PC", bg=BG, fg=FG,
                  font=(FONT_TITLE, 13)).pack(anchor="w", padx=20, pady=(18, 4))
-        tk.Label(win, text="Consenti solo se sei tu o una persona di cui ti fidi.\n"
+        Label(win, text="Consenti solo se sei tu o una persona di cui ti fidi.\n"
                            "La richiesta scade tra 30 secondi.", bg=BG, fg=MUTED, font=(FONT, 9),
                  justify="left").pack(anchor="w", padx=20)
         btns = tk.Frame(win, bg=BG)
@@ -626,16 +722,16 @@ class DesktopApp:
         if dev is None:
             return
         win = tk.Toplevel(self.root, bg=BG)
-        win.title(f"{APP_NAME} · Permessi")
+        win.title(f"{APP_NAME} · {_('Permessi')}")
         win.resizable(False, False)
-        tk.Label(win, text=f"Cosa può fare «{dev.name}»", bg=BG, fg=FG, font=(FONT_TITLE, 13)).pack(
+        Label(win, text=f"Cosa può fare «{dev.name}»", bg=BG, fg=FG, font=(FONT_TITLE, 13)).pack(
             anchor="w", padx=20, pady=(18, 2))
-        tk.Label(win, text="Mouse e tastiera sono sempre consentiti.", bg=BG, fg=MUTED, font=(FONT, 9)).pack(
+        Label(win, text="Mouse e tastiera sono sempre consentiti.", bg=BG, fg=MUTED, font=(FONT, 9)).pack(
             anchor="w", padx=20, pady=(0, 8))
         vars_ = {}
         for perm, label in PERM_LABELS.items():
             vars_[perm] = tk.BooleanVar(value=dev.can(perm))
-            tk.Checkbutton(win, text=f"{label} — {PERM_HELP[perm]}", variable=vars_[perm], bg=BG, fg=FG,
+            Checkbutton(win, text=f"{label} — {PERM_HELP[perm]}", variable=vars_[perm], bg=BG, fg=FG,
                            selectcolor=CARD2, activebackground=BG, activeforeground=FG, font=(FONT, 10), bd=0,
                            highlightthickness=0, anchor="w").pack(fill="x", padx=18, pady=2)
 
@@ -719,11 +815,17 @@ class DesktopApp:
         try:
             set_autostart(self.autostart_var.get())
         except OSError as exc:
-            messagebox.showerror(APP_NAME, f"Impossibile modificare l'avvio automatico: {exc}")
+            messagebox.showerror(APP_NAME, _(f"Impossibile modificare l'avvio automatico: {exc}"))
             self.autostart_var.set(autostart_enabled())
 
     def open_logs(self) -> None:
-        os.startfile(self.settings.log_dir)  # type: ignore[attr-defined]  # noqa: S606
+        path = str(self.settings.log_dir)
+        if sys.platform == "win32":
+            os.startfile(path)  # type: ignore[attr-defined]  # noqa: S606
+        else:
+            import subprocess
+
+            subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", path])  # noqa: S603
 
     def show_doc(self, filename: str, title: str) -> None:
         path = _legal_dir() / filename
@@ -732,7 +834,7 @@ class DesktopApp:
         except OSError:
             text = "Documento non trovato."
         win = tk.Toplevel(self.root, bg=BG)
-        win.title(f"{APP_NAME} · {title}")
+        win.title(f"{APP_NAME} · {_(title)}")
         win.geometry("620x640")
         box = tk.Text(win, wrap="word", bg=CARD, fg=FG, font=(FONT, 10), borderwidth=0, padx=18, pady=14,
                       highlightthickness=1, highlightbackground=LINE, relief="flat")
@@ -753,7 +855,7 @@ class DesktopApp:
             self._notify("PadLink resta attivo nell'area di notifica. Usa \"Esci\" per chiuderlo.")
 
     def quit(self) -> None:
-        if self.connected and not messagebox.askyesno(APP_NAME, "Un telefono è connesso. Chiudere PadLink?"):
+        if self.connected and not messagebox.askyesno(APP_NAME, _("Un telefono è connesso. Chiudere PadLink?")):
             return
         self.quitting = True
         self.rt_server.stop()
@@ -777,11 +879,11 @@ class DesktopApp:
             return
         post = self.ui_queue.put
         menu = pystray.Menu(
-            pystray.MenuItem("Apri PadLink", lambda: post(self.show), default=True),
-            pystray.MenuItem("Associa un nuovo telefono", lambda: post(lambda: (self.show(), self.new_pairing()))),
-            pystray.MenuItem("Pausa controllo", lambda: post(self.toggle_pause), checked=lambda _: self.svc.paused),
+            pystray.MenuItem(_("Apri PadLink"), lambda: post(self.show), default=True),
+            pystray.MenuItem(_("Associa un nuovo telefono"), lambda: post(lambda: (self.show(), self.new_pairing()))),
+            pystray.MenuItem(_("Pausa controllo"), lambda: post(self.toggle_pause), checked=lambda _: self.svc.paused),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Esci", lambda: post(lambda: (self.show(), self.quit()))),
+            pystray.MenuItem(_("Esci"), lambda: post(lambda: (self.show(), self.quit()))),
         )
         self.tray = pystray.Icon(APP_NAME, self._tray_image(False), APP_NAME, menu)
         self.tray_active = False
@@ -797,7 +899,7 @@ class DesktopApp:
     def _notify(self, message: str) -> None:
         if self.tray is not None:
             try:
-                self.tray.notify(message, APP_NAME)
+                self.tray.notify(_(message), APP_NAME)
             except Exception:  # noqa: BLE001 - notifications are best effort
                 pass
 
@@ -834,11 +936,11 @@ def ensure_consent(settings: Any) -> bool:
     head.pack(fill="x")
     logo = _logo_photo(44)
     if logo is not None:
-        tk.Label(head, image=logo, bg=BG).pack(side="left", padx=(0, 12))
+        Label(head, image=logo, bg=BG).pack(side="left", padx=(0, 12))
     names = tk.Frame(head, bg=BG)
     names.pack(side="left")
-    tk.Label(names, text="Benvenuto in PadLink", bg=BG, fg=FG, font=(FONT_TITLE, 16)).pack(anchor="w")
-    tk.Label(names, text="Controlla questo PC dal tuo telefono, in modo sicuro.", bg=BG, fg=MUTED,
+    Label(names, text="Benvenuto in PadLink", bg=BG, fg=FG, font=(FONT_TITLE, 16)).pack(anchor="w")
+    Label(names, text="Controlla questo PC dal tuo telefono, in modo sicuro.", bg=BG, fg=MUTED,
              font=(FONT, 9)).pack(anchor="w")
 
     card = tk.Frame(body, bg=CARD, highlightthickness=1, highlightbackground=LINE)
@@ -856,14 +958,14 @@ def ensure_consent(settings: Any) -> bool:
             tk.Frame(card, bg=LINE, height=1).pack(fill="x", padx=16)
         row = tk.Frame(card, bg=CARD)
         row.pack(fill="x", padx=16, pady=10)
-        tk.Label(row, text="●", bg=CARD, fg=color, font=(FONT, 11)).pack(side="left", anchor="n", padx=(0, 10))
+        Label(row, text="●", bg=CARD, fg=color, font=(FONT, 11)).pack(side="left", anchor="n", padx=(0, 10))
         col = tk.Frame(row, bg=CARD)
         col.pack(side="left", fill="x", expand=True)
-        tk.Label(col, text=title, bg=CARD, fg=FG, font=(FONT, 10, "bold"), anchor="w").pack(fill="x")
-        tk.Label(col, text=desc, bg=CARD, fg=MUTED, font=(FONT, 9), anchor="w", justify="left",
+        Label(col, text=title, bg=CARD, fg=FG, font=(FONT, 10, "bold"), anchor="w").pack(fill="x")
+        Label(col, text=desc, bg=CARD, fg=MUTED, font=(FONT, 9), anchor="w", justify="left",
                  wraplength=440).pack(fill="x")
 
-    tk.Label(body, text="Proseguendo accetti i Termini d'uso e l'Informativa privacy, consultabili in ogni momento "
+    Label(body, text="Proseguendo accetti i Termini d'uso e l'Informativa privacy, consultabili in ogni momento "
                         "dalla finestra di PadLink.", bg=BG, fg=MUTED, font=(FONT, 9), justify="left",
              wraplength=480, anchor="w").pack(fill="x", pady=(14, 0))
     btns = tk.Frame(body, bg=BG)
@@ -902,7 +1004,7 @@ def main(argv: list[str] | None = None) -> int:
 
     instance = SingleInstance()
     if instance.already_running:
-        messagebox.showinfo(APP_NAME, "PadLink è già in esecuzione: cercalo nell'area di notifica (vicino all'orologio).")
+        messagebox.showinfo(APP_NAME, _("PadLink è già in esecuzione: cercalo nell'area di notifica (vicino all'orologio)."))
         return 0
 
     if not ensure_consent(settings):

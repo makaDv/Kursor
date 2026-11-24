@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ApiError, onAuthChange, refresh } from './lib/api'
+import { ApiError, isPasswordError, lockSession, onAuthChange, onPasswordNeeded, refresh } from './lib/api'
 import { t, useLang } from './lib/i18n'
 import { KursorNative } from './lib/native'
 import {
@@ -12,10 +12,11 @@ import {
   rediscover,
   wakePc,
 } from './lib/pc'
-import { getServer, isNative, listServers, loadServer, updateCurrentServer } from './lib/platform'
+import { getServer, isNative, listServers, loadServer, tailscaleOrigin, updateCurrentServer } from './lib/platform'
 import { usePrefs } from './lib/settings'
 import { KursorSocket, type SocketStatus } from './lib/socket'
 import PairScreen from './components/PairScreen'
+import UnlockScreen from './components/UnlockScreen'
 import Trackpad from './components/Trackpad'
 import KeyboardPanel from './components/KeyboardPanel'
 import ScreenPanel from './components/ScreenPanel'
@@ -46,9 +47,11 @@ const TABS: { id: Tab; label: string; icon: IconName; perm?: keyof Perms }[] = [
   { id: 'more', label: 'Altro', icon: 'menu' },
 ]
 
-type Boot = 'checking' | 'paired' | 'unpaired' | 'offline' | 'untrusted'
+type Boot = 'checking' | 'paired' | 'unpaired' | 'offline' | 'untrusted' | 'password'
 
 const RELOCK_AFTER_MS = 60_000
+// After this long in the background the PC password is forgotten and asked again.
+const PASSWORD_RELOCK_MS = 5 * 60_000
 
 export default function App() {
   useLang()
@@ -67,8 +70,15 @@ export default function App() {
   const onMessage = useCallback((msg: Record<string, unknown>) => {
     if (msg.t !== 'ready') return
     if (msg.perms && typeof msg.perms === 'object') setPerms({ ...ALL_PERMS, ...(msg.perms as Partial<Perms>) })
-    const pc = msg.pc as { name?: string; mac?: string | null } | undefined
-    if (pc && isNative) void updateCurrentServer({ name: pc.name || undefined, mac: pc.mac ?? null }).then(() => bump((n) => n + 1))
+    const pc = msg.pc as { name?: string; mac?: string | null; ts?: string | null } | undefined
+    if (pc && isNative) {
+      // Learn the PC's Tailscale address (fallback away from home). Only for pinned PCs:
+      // the same certificate is required on that address too.
+      const cfg = getServer()
+      const ts = cfg?.pin ? tailscaleOrigin(pc.ts, cfg.origin) : null
+      const patch = { name: pc.name || undefined, mac: pc.mac ?? null, ...(ts && ts !== cfg?.origin ? { alt: ts } : {}) }
+      void updateCurrentServer(patch).then(() => bump((n) => n + 1))
+    }
   }, [])
 
   const control = useMemo(() => new KursorSocket({ path: '/ws/control', onStatus: setStatus, onMessage }), [onMessage])
@@ -87,6 +97,10 @@ export default function App() {
         setBoot((await refresh()) ? 'paired' : 'unpaired')
         return true
       } catch (err) {
+        if (isPasswordError(err)) {
+          setBoot('password')
+          return true
+        }
         const code = err instanceof ApiError ? err.code : ''
         if (code === 'pin_mismatch') {
           setBoot('untrusted')
@@ -103,10 +117,12 @@ export default function App() {
 
   useEffect(() => {
     const off = onAuthChange((authed) => setBoot(authed ? 'paired' : 'unpaired'))
+    const offPw = onPasswordNeeded((needed) => needed && setBoot('password'))
     if (pairCode) setBoot('unpaired')
     else void connect()
     return () => {
       off()
+      offPw()
     }
   }, [pairCode, connect])
 
@@ -141,6 +157,20 @@ export default function App() {
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [prefs.biometricLock])
+
+  // PC password: forgotten after minutes in the background, asked again on return.
+  const pwHiddenAt = useRef(0)
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') pwHiddenAt.current = Date.now()
+      else if (pwHiddenAt.current && Date.now() - pwHiddenAt.current > PASSWORD_RELOCK_MS) {
+        pwHiddenAt.current = 0
+        lockSession()
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [])
 
   // Launcher shortcuts / iOS quick actions open a specific tab.
   useEffect(() => {
@@ -212,6 +242,9 @@ export default function App() {
         </button>
       </StateScreen>
     )
+  }
+  if (boot === 'password') {
+    return <UnlockScreen onUnlocked={() => setBoot('paired')} onRepair={() => setBoot('unpaired')} />
   }
   if (boot === 'unpaired') {
     return <PairScreen initialCode={pairCode} onPaired={() => setBoot('paired')} onCancel={listServers().length > 0 && isNative ? () => void connect() : undefined} />

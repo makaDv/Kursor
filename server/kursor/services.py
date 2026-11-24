@@ -17,6 +17,7 @@ from .fsutil import ensure_private_dir
 from .netutil import hostname, lan_ipv4_addresses
 from .security.origin import OriginPolicy
 from .security.pairing import PairingManager
+from .security.password import PasswordStore
 from .security.ratelimit import LoginGuard, RateLimiter
 from .prefs import PrefsStore
 from .security.store import DeviceStore
@@ -68,6 +69,7 @@ class Services:
     system_limiter: RateLimiter
     origin: OriginPolicy
     input: InputController
+    password: PasswordStore
     registry: ConnectionRegistry = field(default_factory=ConnectionRegistry)
     lan_ips: list[str] = field(default_factory=list)
     # device_id -> number of live screen streams (drives the "watching your screen" indicator).
@@ -114,6 +116,7 @@ class Services:
             system_limiter=RateLimiter(rate=0.2, capacity=1),
             origin=OriginPolicy(settings, ips, hostname()),
             input=InputController(),
+            password=PasswordStore(settings.password_file),
             lan_ips=ips,
             pc_name=hostname(),
         )

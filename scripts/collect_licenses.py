@@ -29,7 +29,8 @@ ANDROID_APACHE = [
     ("Kotlin Standard Library (OkHttp dependency)", "Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors."),
     ("ZXing core", "Copyright 2007-2024 ZXing authors"),
     ("zxing-android-embedded", "Copyright (C) 2012-2024 ZXing authors, Journey Mobile"),
-    ("AndroidX libraries (appcompat, core, activity, fragment, webkit, ...)", "Copyright The Android Open Source Project"),
+    ("AndroidX libraries (appcompat, core, activity, fragment, webkit, biometric, ...)", "Copyright The Android Open Source Project"),
+    ("Google Play In-App Review", "Copyright Google LLC"),
 ]
 
 
@@ -108,8 +109,9 @@ def windows_licenses() -> str:
     roots = _req_names(ROOT / "server" / "requirements.txt") + _req_names(ROOT / "server" / "requirements-desktop.txt")
     out = ["PadLink for Windows: third-party software notices", "",
            "This program bundles the following open-source software, under the licenses reproduced below.",
-           "LGPL-3.0 components (pynput, pystray) are unmodified and kept as separate replaceable modules;",
-           "source: https://github.com/moses-palmer/pynput , https://github.com/moses-palmer/pystray"]
+           "LGPL components (pynput, pystray, zeroconf) are unmodified and kept as separate replaceable modules;",
+           "source: https://github.com/moses-palmer/pynput , https://github.com/moses-palmer/pystray , "
+           "https://github.com/python-zeroconf/python-zeroconf"]
     py_license = Path(sys.base_prefix) / "LICENSE.txt"
     if py_license.exists():
         out.append(SEP + f"Python {sys.version.split()[0]} (PSF License)\n")

@@ -17,6 +17,8 @@ s = Settings(); s.data_dir = DATA; s.port = 18444; s.log_level = "WARNING"
 rt = prepare(s)
 srv = ServerThread(rt.uvicorn_config()); srv.start(); assert srv.wait_started()
 svc = rt.svc
+PW = "test-password-123"
+svc.password.set(PW)
 ctx = ssl.create_default_context(cafile=str(DATA / "certs" / "kursor-ca.crt"))
 BASE, ORIGIN = "https://127.0.0.1:18444", "https://localhost"
 fails = []
@@ -33,7 +35,7 @@ def post(path, body, token=None):
     except urllib.error.HTTPError as e: return e.code, json.loads(e.read())
 
 pin = svc.pairing.new_session().pin
-_, tok = post("/api/auth/pair", {"secret": pin, "device_name": "T", "client": "app"})
+_, tok = post("/api/auth/pair", {"secret": pin, "password": PW, "device_name": "T", "client": "app"})
 at = tok["access_token"]
 
 async def connect():

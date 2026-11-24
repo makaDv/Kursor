@@ -49,6 +49,20 @@ def lan_ipv4_addresses() -> list[str]:
     return [ip for ip in ips if not ip.startswith(("127.", "169.254."))]
 
 
+TAILSCALE_NETWORK = ipaddress.ip_network("100.64.0.0/10")
+
+
+def tailscale_ipv4(ips: list[str] | None = None) -> str | None:
+    """This PC's Tailscale address (100.64.0.0/10), if Tailscale is up."""
+    for ip in ips if ips is not None else lan_ipv4_addresses():
+        try:
+            if ipaddress.ip_address(ip) in TAILSCALE_NETWORK:
+                return ip
+        except ValueError:
+            continue
+    return None
+
+
 def hostname() -> str:
     return socket.gethostname().lower()
 

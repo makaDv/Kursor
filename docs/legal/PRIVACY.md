@@ -27,17 +27,27 @@ Se scegli di usare un tunnel (per esempio Cloudflare Tunnel o WireGuard) per rag
 
 | Dove | Cosa | Perché | Per quanto |
 |---|---|---|---|
-| Telefono | Indirizzo del PC, impronta del suo certificato, token di sessione (cifrato nel Keystore Android o nel Keychain iOS), preferenze | Riconnettersi al PC in modo sicuro | Finché non disconnetti o disinstalli l'app |
-| PC | Nome del dispositivo associato, data di associazione, ultimo accesso e ultimo IP locale, hash del token di sessione | Gestire e revocare i dispositivi | Finché non revochi il dispositivo |
+| Telefono | Indirizzi, nomi e indirizzo MAC dei PC associati (il MAC serve solo per l'accensione a distanza), impronta dei loro certificati, token di sessione (cifrati nel Keystore Android o nel Keychain iOS), preferenze, ultime frasi digitate nella Tastiera | Riconnettersi ai PC in modo sicuro, comodità | Finché non disconnetti, dimentichi il PC o disinstalli l'app |
+| PC | Nome del dispositivo associato, permessi, data di associazione, ultimo accesso e ultimo IP locale, hash del token di sessione | Gestire, limitare e revocare i dispositivi | Finché non revochi il dispositivo (o fino alla revoca automatica dei telefoni inattivi, se attiva) |
+| PC | Hash scrypt della password del PC (mai la password in chiaro). Sul telefono la password resta solo in memoria | Chiedere la password a ogni apertura dell'app | Finché non la cambi |
+| PC | Blocchi temporanei anti-tentativi (IP locale e scadenza) | Sicurezza: impedire di indovinare il PIN | Fino alla scadenza del blocco |
 | PC | Registro degli accessi (associazioni, tentativi falliti, revoche, azioni di sistema, chiusura di app: solo il nome del programma, mai il titolo della finestra) | Sicurezza: rilevare abusi | File a rotazione, al massimo circa 12 MB |
-| In transito | Movimenti del mouse, tasti, testo digitato, immagini dello schermo, elenco delle app e delle finestre aperte sul PC (nome del programma e titolo della finestra) | Il controllo remoto vero e proprio | Non vengono salvati: esistono solo in tempo reale |
+| In transito | Movimenti del mouse, tasti, testo digitato, immagini dello schermo, elenco delle app e delle finestre aperte sul PC (nome del programma e titolo della finestra), testo degli appunti solo quando premi «Copia dal PC» o «Incolla sul PC» | Il controllo remoto vero e proprio | Non vengono salvati: esistono solo in tempo reale |
+| Rete locale | Il programma PC si annuncia sulla rete locale (mDNS) con il nome del PC e l'impronta pubblica del suo certificato | Permettere all'app di ritrovare il PC se cambia indirizzo | Finché il programma è aperto; disattivabile dalla finestra di PadLink |
 
 Lo sviluppatore non riceve e non possiede copie di nessuno di questi dati.
+
+## Servizi di terzi, solo se li usi
+
+- **Valutazione nello store**: dopo alcuni utilizzi l'app può chiedere a Google Play o all'App Store di mostrare la loro finestra di valutazione. La gestisce interamente lo store, secondo la sua privacy policy; PadLink non riceve nulla.
+- **Assistenza**: «Segnala un problema» apre il tuo programma di posta con un messaggio precompilato (versione dell'app e modello del telefono). Lo invii tu, e solo se vuoi.
+- **Aggiornamenti del programma PC** (quando attivi): una volta al giorno il programma scarica un piccolo file pubblico che indica l'ultima versione, senza inviare identificativi. Il server che lo ospita vede solo l'indirizzo IP pubblico, come per qualsiasi download.
 
 ## Permessi dell'app
 
 - **Fotocamera**: solo per leggere il QR code di associazione. L'elaborazione avviene sul telefono e nessuna immagine viene salvata o trasmessa.
-- **Rete / rete locale**: per raggiungere il PC sulla tua rete.
+- **Rete / rete locale**: per raggiungere e ritrovare il PC sulla tua rete.
+- **Impronta / volto** (facoltativo): la verifica la fa il sistema del telefono; PadLink riceve solo «riuscito» o «non riuscito», mai dati biometrici.
 
 ## I tuoi diritti e la cancellazione
 
@@ -76,12 +86,15 @@ _Last updated: 14 November 2026_
 
 **Data stored on your devices only.**
 - *Phone:* the PC address, its certificate fingerprint, a session token (encrypted in the Android Keystore or iOS Keychain) and your preferences.
-- *PC:* the paired device name, pairing date, last access time and local IP, a hash of the session token, and a rotating security access log (about 12 MB at most).
+- *PC:* the paired device name, pairing date, last access time and local IP, a hash of the session token, a scrypt hash of the PC password (never the password itself; on the phone it is kept only in memory), and a rotating security access log (about 12 MB at most).
 - *Never stored:* mouse movements, keystrokes, typed text, screen images and the list of open apps/windows (program name and window title). They exist only in real time between your devices.
+
+**Third-party services, only if you use them.** The store may show its own rating dialog; “Report a problem” opens your mail app with a pre-filled message you choose to send; the PC program, when update checks are enabled, downloads a small public version file once a day without identifiers.
 
 **Permissions.**
 - *Camera:* used only to read the pairing QR code, on the device. No images are stored or sent.
-- *Local network:* used to reach your PC.
+- *Local network:* used to reach and find your PC (the PC announces its name and public certificate fingerprint via mDNS; can be turned off).
+- *Fingerprint / face (optional):* checked by the phone’s system; PadLink only gets “success” or “failure”.
 
 **Control and deletion.**
 - Revoke a device from the app or from the PC window.

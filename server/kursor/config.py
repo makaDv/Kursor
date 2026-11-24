@@ -91,3 +91,7 @@ class Settings:
     @property
     def prefs_file(self) -> Path:
         return self.data_dir / "settings.json"
+
+    @property
+    def password_file(self) -> Path:
+        return self.data_dir / "password.json"

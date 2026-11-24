@@ -53,7 +53,8 @@ class TokenService:
             self._mtime = mtime_ns(self.secret_path)
         return True
 
-    def issue_access(self, device_id: str) -> tuple[str, int]:
+    def issue_access(self, device_id: str, pwv: str = "") -> tuple[str, int]:
+        """``pwv``: version of the PC password the device proved; a password change invalidates the token."""
         now = int(time.time())
         exp = now + self.access_ttl
         payload = {
@@ -65,10 +66,11 @@ class TokenService:
             "exp": exp,
             "jti": secrets.token_hex(8),
             "typ": "access",
+            "pwv": pwv,
         }
         return jwt.encode(payload, self._secret, algorithm=ALGORITHM), exp
 
-    def verify_access(self, token: str) -> dict[str, Any]:
+    def verify_access(self, token: str, pwv: str | None = None) -> dict[str, Any]:
         claims = jwt.decode(
             token,
             self._secret,
@@ -80,4 +82,7 @@ class TokenService:
         )
         if claims.get("typ") != "access":
             raise jwt.InvalidTokenError("wrong token type")
+        if pwv is not None and claims.get("pwv") != pwv:
+            # Reported as expired: the client refreshes, and the refresh asks for the new password.
+            raise jwt.ExpiredSignatureError("password changed")
         return claims

@@ -12,7 +12,8 @@ Checklist per Google Play, Apple App Store e la distribuzione del programma Wind
 |---|---|---|
 | Identificativo definitivo dell'app | `client/capacitor.config.ts` (`appId`), `client/android/app/build.gradle`, progetto Xcode | Oggi è `io.github.makadv.padlink`. **Non si può più cambiare dopo la prima pubblicazione.** Se hai un dominio, usa `tuodominio.padlink`. |
 | Nome e contatto | `docs/legal/PRIVACY.md`, `docs/legal/TERMS.md` | Sostituisci `[NOME / RAGIONE SOCIALE]` e `[EMAIL DI CONTATTO]`. Usa un'email dedicata. |
-| URL pubblico della privacy | Obbligatorio per entrambi gli store | Il repository è privato, quindi pubblica **solo** `PRIVACY.md`, per esempio con Google Sites, Notion pubblico o un repository pubblico separato che contenga solo quel file. |
+| Sito pubblico e URL della privacy | Obbligatorio per entrambi gli store | `scripts/build_site.py` genera `site/dist/` (home, FAQ, privacy, termini) dai documenti in `docs/legal`. Pubblica **solo** quella cartella (GitHub Pages di un repository pubblico separato, Netlify, Cloudflare Pages). L'URL della privacy è `<sito>/privacy.html`. Il repository resta privato. |
+| Email di assistenza | `client/src/components/Help.tsx` (`SUPPORT_EMAIL`), `site/template.html` | Sostituisci `supporto@example.com`: è l'indirizzo del pulsante «Segnala un problema». |
 | Verifica del marchio "PadLink" | [TMview](https://www.tmdn.org/tmview/) (UE + nazionali), [USPTO](https://tmsearch.uspto.gov) | Il progetto si chiamava "Kursor", ma è stato rinominato perché suona identico a **Cursor**, marchio software registrato da Anysphere. Negli USA non risultano marchi PADLINK attivi (novembre 2026); **verifica in UE nelle classi 9 e 42 prima del lancio**. Valuta di registrarlo tu (EUIPO, circa 850 € per una classe). |
 | Contatto sicurezza | `SECURITY.md` | Sostituisci `[EMAIL DI SICUREZZA]` (può essere la stessa email di contatto). |
 | Account sviluppatore | Google Play Console (25 $ una tantum), Apple Developer Program (99 $/anno) | Per Google Play da privato servono verifica dell'identità e 12 tester per 14 giorni prima della produzione. |
@@ -27,7 +28,8 @@ Checklist per Google Play, Apple App Store e la distribuzione del programma Wind
 | **Revisione legale di Termini e Privacy** | Prima del lancio | Sono modelli accurati per *come funziona davvero* l'app, ma solo un avvocato può adattarli alla tua situazione. È una spesa una tantum, consigliata. |
 | **Età** | Prima di registrare gli account | Per gli account sviluppatore Google e Apple devi essere maggiorenne. |
 | **Cyber Resilience Act (UE 2024/2847)** | Obbligo di segnalare all'ENISA le vulnerabilità sfruttate attivamente dall'**11 settembre 2026**; requisiti completi dall'11 dicembre 2027 | Si applica ai prodotti software messi sul mercato UE **nell'ambito di un'attività commerciale**. Se PadLink resta gratuito e senza guadagni sei probabilmente escluso; se lo monetizzi, rientri: devi gestire le vulnerabilità (già c'è `SECURITY.md`), dichiarare per quanto tempo fornirai aggiornamenti di sicurezza e segnalare entro 24 ore le falle sfruttate. Da verificare con il legale. |
-| **Controlli di sicurezza prima di ogni rilascio** | Ogni versione | `cd client; npm audit --omit=dev` e `server\.venv\Scripts\python -m pip_audit -r serverequirements.lock`: entrambi devono dare 0 vulnerabilità. Poi rigenera le licenze (`scripts/collect_licenses.py`). |
+| **Controlli di sicurezza prima di ogni rilascio** | Ogni versione | `cd client; npm audit --omit=dev` e `server\.venv\Scripts\python -m pip_audit -r server
+equirements.lock`: entrambi devono dare 0 vulnerabilità. Poi rigenera le licenze (`scripts/collect_licenses.py`). |
 | **Responsabilità** | Facoltativo | Le esclusioni di garanzia nei Termini riducono il rischio, ma non lo azzerano per danni causati da difetti gravi. Correggi subito le vulnerabilità segnalate (`SECURITY.md`) e tieni l'app aggiornata. |
 
 ---
@@ -45,10 +47,11 @@ Checklist per Google Play, Apple App Store e la distribuzione del programma Wind
   Motivazione: i dati (indirizzo del PC, token cifrato, comandi, immagini dello schermo) restano sul dispositivo o viaggiano solo fra il telefono e il PC dell'utente. Per la definizione di Google, i dati che lasciano il dispositivo verso un server **controllato dall'utente stesso** non sono "raccolti" dallo sviluppatore.
 - **I dati sono criptati in transito?** → Sì (TLS 1.2+, certificate pinning).
 - **È possibile richiedere la cancellazione dei dati?** → Non si applica: non esistono dati sui server dello sviluppatore. Basta disinstallare l'app.
-- **SDK di terze parti che raccolgono dati:** nessuno. Lo scanner QR usa ZXing (offline), **non** Google ML Kit.
+- **SDK di terze parti che raccolgono dati:** nessuno. Lo scanner QR usa ZXing (offline), **non** Google ML Kit. La finestra di valutazione usa la libreria *Play In-App Review*: è un flusso di Google Play stesso e non trasmette dati dall'app allo sviluppatore. La biometria è verificata dal sistema (AndroidX Biometric) e non lascia il telefono.
+- **Rete locale (mDNS, Wake-on-LAN):** il traffico resta sulla rete dell'utente, quindi non rientra nella raccolta di dati.
 
 ### Altre dichiarazioni
-- **Permessi:** `CAMERA` serve solo allo scanner QR. Non ci sono permessi sensibili soggetti a dichiarazione (niente Accessibility, niente SMS, niente posizione).
+- **Permessi:** `CAMERA` serve solo allo scanner QR. Non ci sono permessi sensibili soggetti a dichiarazione: niente Accessibility, niente SMS, niente posizione. Wake-on-LAN e mDNS usano solo `INTERNET`, e la biometria non richiede permessi da dichiarare.
 - **Classificazione dei contenuti (IARC):** utility, nessun contenuto sensibile, quindi PEGI 3 / Everyone.
 - **Pubblico di destinazione:** 18+ (oppure 13+). Non selezionare fasce per bambini.
 - **Accesso all'app per la revisione:** "Sono necessarie istruzioni speciali". Incolla le istruzioni della sezione 4.
@@ -72,6 +75,9 @@ Checklist per Google Play, Apple App Store e la distribuzione del programma Wind
 | 5.1.1 Privacy / permessi | Testi chiari per fotocamera e rete locale in `Info.plist`. Privacy policy nell'app (Altro › Privacy). |
 | 5.1.2 Uso dei dati | Nessun tracciamento: `PrivacyInfo.xcprivacy` dichiara che non viene raccolto nessun dato. |
 | Export compliance | `ITSAppUsesNonExemptEncryption = false`: si usa solo il TLS standard del sistema (esente). |
+
+### Permessi iOS dichiarati in `Info.plist`
+`NSCameraUsageDescription` (QR), `NSLocalNetworkUsageDescription` (rete locale), `NSFaceIDUsageDescription` (sblocco facoltativo), `NSBonjourServices` = `_padlink._tcp` (ritrovare il PC dopo un cambio di IP). Su iPhone il Wake-on-LAN non c'è: servirebbe l'entitlement multicast di Apple, da richiedere a parte.
 
 ### Privacy dell'app (App Store Connect › App Privacy)
 - **Do you or your third-party partners collect data from this app?** → **No, we do not collect data from this app.**
@@ -177,6 +183,35 @@ Usa PadLink solo su computer tuoi o che sei autorizzato a gestire.
 **Screenshot:** pairing, trackpad, tastiera, schermo, finestra del PC con indicatore verde.
 
 ---
+
+## 7. Recensioni e feedback (per avere voti alti)
+
+**Già nell'app:**
+- **Richiesta di valutazione:** compare solo dopo 3 sessioni riuscite, mai dopo un errore, al massimo ogni 120 giorni (`client/src/lib/pc.ts`). Rispetta le regole degli store: non chiede «5 stelle» e non offre premi.
+- **«Segnala un problema» e «Suggerisci un'idea»** (Aiuto): aprono una mail precompilata verso di te, così le lamentele arrivano a te prima che diventino recensioni da una stella.
+- **FAQ** nell'app e sul sito, con le risposte ai problemi più comuni (PC non trovato, firewall, certificato).
+
+**Da fare tu:**
+- Rispondi a **tutte** le recensioni nei primi mesi, con cortesia e una soluzione concreta (Play Console › Valutazioni e recensioni; App Store Connect › Valutazioni e recensioni). Chi riceve risposta spesso alza il voto.
+- Pubblica **note di versione** chiare, che citano ciò che gli utenti hanno chiesto. Modello:
+  ```
+  Novità
+  • Accendi il PC dal telefono (Wake-on-LAN) – richiesto da molti di voi
+  • L'app ritrova il PC anche se cambia indirizzo
+  Correzioni
+  • Connessione più stabile dopo la sospensione del PC
+  Grazie per le segnalazioni: scrivici da Altro › Aiuto.
+  ```
+- Fai partire una **beta pubblica** (test aperto su Play, TestFlight pubblico) prima del lancio: i primi utenti diventano tester affezionati.
+- Mostra negli screenshot e nel video l'indicatore verde sul PC: comunica subito che l'app è trasparente e sicura.
+
+## 8. Aggiornamenti del programma PC (firmati)
+
+Il programma Windows controlla una volta al giorno se c'è una nuova versione, ma solo dopo che l'hai configurato:
+1. `python scripts/release_keys.py keygen <cartella-fuori-dal-repo>` genera la coppia di chiavi. **Tieni la chiave privata offline.**
+2. Copia la chiave pubblica stampata in `UPDATE_PUBLIC_KEY` e l'URL del manifest in `UPDATE_URL` (`server/kursor/updates.py`).
+3. A ogni rilascio pubblica `latest.json` (versione, URL dell'installer, sha256) e firmalo con `python scripts/release_keys.py sign <chiave> latest.json`, che crea `latest.json.sig`.
+4. Il programma mostra «È disponibile PadLink x.y» solo se la firma è valida: un sito compromesso non può spingere un falso aggiornamento.
 
 ## 6. Cose da NON fare (per non avere problemi)
 

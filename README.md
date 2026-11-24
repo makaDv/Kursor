@@ -67,7 +67,8 @@ PadLink/
 | Minaccia | Contromisura |
 |---|---|
 | Accesso non autorizzato | **Pairing** con PIN a 6 cifre o QR (codice casuale a 144 bit). È **monouso** e scade dopo **5 minuti**. Su disco finiscono solo gli HMAC. |
-| Brute force del PIN | **Blocco per IP dopo 5 errori.** Il blocco dura 15 min e raddoppia a ogni recidiva. In più il PIN viene **distrutto dopo 5 errori totali**, da qualunque IP. Ogni risposta di errore ha un ritardo casuale. |
+| Password del PC | Oltre al pairing serve una **password scelta sul PC**, chiesta dall'app **a ogni apertura** (e dopo 5 minuti in background). Sul PC resta solo un hash **scrypt** (`password.json`); sul telefono la password vive solo in memoria. Si verifica durante il refresh, prima di ruotare il token: una password sbagliata non consuma la sessione, ma conta nel blocco per IP e, dopo **10 errori**, revoca il telefono. Cambiarla chiude le sessioni attive e invalida gli access token (claim `pwv`). |
+| Brute force del PIN | **Blocco per IP dopo 5 errori**, salvato su disco (`lockouts.json`), quindi resta anche se il programma viene riavviato. Il blocco dura 15 min e raddoppia a ogni recidiva. In più il PIN viene **distrutto dopo 5 errori totali**, da qualunque IP. Ogni risposta di errore ha un ritardo casuale. |
 | Furto del token | **Access token JWT di 10 min**, tenuto solo in memoria (mai in `localStorage`). Il **refresh token** sta in un cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/auth`, invisibile a JavaScript, e **ruota** a ogni uso. Se un token già usato ricompare, il server lo tratta come furto e **revoca il dispositivo**. |
 | CSRF / WebSocket hijacking | Allow-list rigorosa di **Origin** sulle richieste che modificano lo stato e su ogni handshake WebSocket. Il cookie è `SameSite=Strict`. |
 | DNS rebinding | Allow-list dell'header **Host** (IP LAN, `localhost`, hostname, origine del tunnel). |
@@ -77,6 +78,13 @@ PadLink/
 | Esposizione accidentale | Il server accetta **solo** client della rete locale (IP privati), di VPN (range CGNAT di Tailscale) o di un tunnel locale (`127.0.0.1`). Se il PC finisce esposto su Internet per errore (port forwarding, UPnP, DMZ), le richieste da IP pubblici vengono rifiutate (HTTP 403 `lan_only`, WS 4403) e registrate. |
 | Visione dello schermo | Quando un telefono guarda lo schermo, la finestra del PC lo dice esplicitamente ("Sta guardando lo schermo: …") e compare una notifica. |
 | XSS nelle app | CSP anche nelle app native (meta inserito in build da `vite.config.ts`). Nessun `eval` o script inline. Dipendenze verificate con `npm audit` e `pip-audit`. |
+| Permessi per dispositivo | Dalla finestra del PC ogni telefono può essere limitato: schermo, app, appunti, spegnimento. Il server li applica a ogni richiesta (HTTP 403 `no_permission`, WS 4403). Mouse e tastiera restano sempre consentiti. |
+| Conferma sul PC | Opzione «Chiedi conferma qui sul PC»: alla prima connessione di ogni sessione compare *Consenti / Rifiuta*. La richiesta scade in 30 s, e un rifiuto chiude con WS 4403 `denied`. |
+| Notifiche delle azioni | Blocco, sospensione, spegnimento, chiusura o terminazione di programmi e lettura degli appunti mostrano sul PC una notifica con il nome del telefono. |
+| Telefoni dimenticati | Revoca automatica dei dispositivi non usati da 30, 90 o 180 giorni (impostazione sul PC, default 90). |
+| Telefono rubato | Sblocco facoltativo dell'app con impronta o volto, che è richiesta di default anche per spegnere e terminare. |
+| Aggiornamenti | Controllo giornaliero facoltativo di una nuova versione, con manifest firmato **Ed25519** (`server/kursor/updates.py`): un sito compromesso non può annunciare aggiornamenti falsi. |
+| Rete pubblica | Se Windows classifica la rete come «Pubblica», la finestra di PadLink mostra un avviso. |
 | Uso occulto | **Nessuna modalità nascosta.** L'icona nel tray è sempre visibile, diventa verde e mostra una notifica quando un telefono si connette. La finestra indica chi sta controllando il PC. **Pausa** (codice 4423) e revoca sono a un clic. Al primo avvio c'è una schermata di consenso, e l'avvio automatico è facoltativo. |
 | Esposizione su internet | Nessun port forwarding. Si passa da **Cloudflare Tunnel** (+ Cloudflare Access) oppure da **WireGuard/Tailscale**. In modalità tunnel il server ascolta solo su `127.0.0.1`. |
 | Revoca | `python -m kursor revoke <id>` oppure il pulsante nell'app. Le sessioni live si chiudono entro circa 2 secondi (codice 4409). Anche gli access token ancora validi smettono subito di funzionare. |
@@ -175,6 +183,7 @@ Il PIN scade dopo 5 minuti ed è monouso. Per associare un altro dispositivo, co
 .venv\Scripts\python -m kursor devices          # elenco
 .venv\Scripts\python -m kursor revoke 3fa2      # revoca per ID o prefisso univoco
 .venv\Scripts\python -m kursor revoke-all       # revoca tutto e ruota la chiave di firma
+.venv\Scripts\python -m kursor password         # imposta o cambia la password del PC (anche dalla finestra di PadLink)
 ```
 
 Puoi vedere e revocare i dispositivi anche dall'app (scheda **Altro**).
@@ -194,7 +203,9 @@ Puoi vedere e revocare i dispositivi anche dall'app (scheda **Altro**).
 **Non** aprire la porta 8443 sul router. Scegli una di queste opzioni.
 
 ### Opzione A: Tailscale / WireGuard (consigliata, la più semplice)
-- **Tailscale:** installalo su PC e telefono con lo stesso account. Apri `https://<IP-100.x-del-PC>:8443`. PadLink include gli IP 100.64.0.0/10 nel certificato se il PC li espone all'avvio. Se cambia rete, riavvia PadLink.
+- **Tailscale:** installalo su PC e telefono con lo stesso account e avvialo **prima** di PadLink: l'IP 100.x finisce nel certificato e nel QR (`&ts=100.x.y.z`). Fuori casa l'app passa da sola all'indirizzo Tailscale, con lo stesso certificato fissato (pinning). Se Tailscale parte dopo PadLink, riavvia PadLink: l'app impara l'indirizzo Tailscale alla prima connessione successiva.
+- **Firewall:** da PowerShell come amministratore, `powershell -ExecutionPolicy Bypass -File scripts\firewall.ps1`. Apre la porta 8443 solo alla rete locale (profilo Privato) e a 100.64.0.0/10 (Tailscale), mai a Internet.
+- La password del PC resta obbligatoria anche via Tailscale.
 - **WireGuard:** server sul router o su un dispositivo sempre acceso. Per il telefono vedi l'esempio [`docs/wireguard-peer.example.conf`](docs/wireguard-peer.example.conf).
 
 ### Opzione B: Cloudflare Tunnel (+ Cloudflare Access)
@@ -236,6 +247,8 @@ npm run build; npx cap sync      # copia il web e collega il plugin nativo in an
 npx cap open android             # Android Studio, poi ▶
 ```
 - APK di debug da riga di comando: `cd client\android; .\gradlew assembleDebug`.
+- APK release firmato (consigliato anche per uso personale: il debug è `debuggable`): crea `client\android\keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`; è in `.gitignore`), poi `.\gradlew assembleRelease` e `adb install -r app\build\outputs\apk\release\app-release.apk`.
+- Se sposti la cartella del progetto, riesegui `npm install` in `client`: il plugin `kursor-native` è un link locale e `npx cap sync` non lo trova più.
 - iOS richiede macOS + Xcode (`npx cap open ios`) oppure la CI: `gh workflow run build.yml -f targets=ios` compila il progetto senza firma.
 - Icone e splash (PWA, Android, iOS, Windows): `server\.venv\Scripts\python scripts\make_icons.py`.
 
@@ -268,11 +281,26 @@ Rigenerare le icone: `server\.venv\Scripts\python scripts\make_icons.py`
 1. Il client si connette a `/ws/control` o a `/ws/screen` e invia `{"t":"auth","token":"<JWT>"}` entro 5 s. Il server risponde con `{"t":"ready","exp":…,"monitors":[…]}`.
 2. **Comandi di controllo:** `move{dx,dy}` · `abs{x,y,m}` · `click{b,n}` · `down{b}` · `up{b}` · `scroll{dx,dy}` · `text{s}` · `keys{k:[…]}` · `ping`.
 3. **Comandi dello schermo:** `start{params}` · `config{params}` · `stop` · `ack{seq}`. Ogni frame binario è un header di 20 byte (`<IffHHB3x`: seq, cursore x/y normalizzati, larghezza, altezza, formato) seguito dall'immagine.
-4. **Codici di chiusura:** `4401` token scaduto/non valido · `4403` origine vietata · `4408` timeout auth · `4409` dispositivo revocato · `4423` controllo in pausa sul PC · `4429` bloccato.
+4. **Codici di chiusura:** `4401` token scaduto/non valido · `4403` origine vietata, `denied` (rifiutato sul PC) o `no_permission` · `4408` timeout auth · `4409` dispositivo revocato · `4423` controllo in pausa sul PC · `4429` bloccato.
+5. **Messaggi aggiuntivi:** `{"t":"approval_pending"}` mentre il PC chiede conferma; `ready` include `perms` (permessi) e `pc` (nome e MAC per il Wake-on-LAN).
+
+## Funzioni per l'utente
+
+- **App:** più PC con selettore nell'intestazione; ritrova il PC via mDNS (`_padlink._tcp`) se cambia IP; Wake-on-LAN (Android); scheda App con icone vere; appunti telefono ↔ PC su richiesta; frasi recenti; controlli per presentazioni; tasti del volume del telefono come volume del PC (Android); pulsanti per mancini; tema chiaro/scuro/automatico; dimensione del testo; italiano e inglese; guida iniziale; Aiuto e FAQ con «Segnala un problema»; scorciatoie dal launcher (Android) e azioni rapide (iOS); richiesta di valutazione dopo 3 sessioni riuscite.
+- **Programma PC:** italiano o inglese in base alla lingua di Windows (`PADLINK_LANG=it|en` per forzarla); permessi per telefono; conferma delle connessioni; revoca automatica degli inattivi; annuncio mDNS disattivabile; avviso di rete pubblica; notifiche delle azioni.
+
+## Test
+
+```powershell
+cd server
+.venv\Scripts\python -m pip install -r requirements-dev.txt
+.venv\Scripts\python -m pytest -q tests
+```
+Le suite in `server/tests/suites` provano tutto end-to-end su server reali: autenticazione, pinning, pausa, finestre, permessi, conferma, appunti, blocchi e mDNS. La CI (`gh workflow run build.yml -f targets=test`) le esegue insieme a `pip-audit` e `npm audit`. Dependabot propone ogni settimana gli aggiornamenti di sicurezza.
 
 ## Limiti noti
 - Windows 11 con Smart App Control blocca `PadLink.exe` se non è firmato: per distribuirlo serve la firma del codice oppure il Microsoft Store (vedi `docs/store/PUBLISHING.md`).
-- Il programma per PC esiste solo per Windows.
-- Il blocco anti brute force sta in memoria: si azzera al riavvio del server. Il PIN però scade e viene distrutto dopo 5 errori, a prescindere.
+- Il programma per PC esiste solo per Windows. Il server gira anche su macOS e Linux, ma senza la scheda App, gli appunti e il pacchetto di installazione.
+- Wake-on-LAN e tasti del volume del telefono funzionano solo su Android: su iPhone servirebbero un entitlement Apple o API non pubbliche.
 - Con l'ibernazione attiva, Windows può ibernare invece di sospendere.
 - La schermata di blocco/UAC di Windows (desktop sicuro) non è controllabile da un processo utente: è una scelta di sicurezza del sistema operativo.

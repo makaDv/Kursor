@@ -20,6 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from . import __version__
 from .control import clipboard, system, windows
+from .fsutil import mtime_ns
 from .logging_setup import audit
 from .netutil import is_lan_peer, resolve_client_ip
 from .security.pairing import PairResult
@@ -80,7 +81,7 @@ def _token_response(svc: Services, device_id: str, refresh_token: str, app: bool
     """Browser (PWA): refresh token in an HttpOnly cookie. Native app: in the body,
     to be kept in the Android Keystore-backed secure store (cookies would be
     cross-site there and are never sent)."""
-    access, exp = svc.tokens.issue_access(device_id)
+    access, exp = svc.tokens.issue_access(device_id, svc.password.version())
     body: dict[str, Any] = {"access_token": access, "token_type": "bearer", "expires_at": exp, "device_id": device_id}
     if app:
         body["refresh_token"] = refresh_token
@@ -103,7 +104,7 @@ async def require_device(request: Request) -> AuthContext:
     if scheme.lower() != "bearer" or not token:
         raise HTTPException(401, detail={"code": "unauthorized", "message": "Token mancante"})
     try:
-        claims = svc.tokens.verify_access(token.strip())
+        claims = svc.tokens.verify_access(token.strip(), svc.password.version())
     except jwt.ExpiredSignatureError:
         raise HTTPException(401, detail={"code": "token_expired", "message": "Token scaduto"}) from None
     except jwt.InvalidTokenError:
@@ -125,6 +126,7 @@ def require_perm(svc: Services, ctx: AuthContext, perm: str) -> None:
 class PairRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     secret: str = Field(min_length=6, max_length=64)
+    password: str = Field(default="", max_length=128)
     device_name: str = Field(min_length=1, max_length=64)
     client: Literal["web", "app"] = "web"
 
@@ -152,6 +154,7 @@ async def _watch_revocations(svc: Services) -> None:
     "inactive_days" preference (0 = never), so a forgotten phone stops working.
     """
     last_purge = 0.0
+    pw_mtime = mtime_ns(svc.settings.password_file)
     while True:
         await asyncio.sleep(2)
         try:
@@ -163,6 +166,13 @@ async def _watch_revocations(svc: Services) -> None:
                     if device_id not in live and svc.store.revoke(device_id):
                         audit("device_revoked", device=device_id, by="inactivity", days=days)
             svc.tokens.maybe_reload()
+            current_pw = mtime_ns(svc.settings.password_file)
+            if current_pw != pw_mtime:
+                # Password set or changed (CLI or PC window): every phone must type the new one.
+                pw_mtime = current_pw
+                for device_id in svc.registry.device_ids():
+                    await svc.registry.close_device(device_id, 4401, "password_changed")
+                audit("password_changed_sessions_closed")
             alive = svc.store.ids()
             for device_id in svc.registry.device_ids():
                 if device_id not in alive:
@@ -259,7 +269,8 @@ def create_app(svc: Services) -> FastAPI:
     # ---- public endpoints ---------------------------------------------------------
     @app.get("/api/health")
     async def health() -> dict[str, Any]:
-        return {"status": "ok", "version": __version__}
+        # No version here: unauthenticated callers should not learn what to target.
+        return {"status": "ok"}
 
     @app.get("/ca.crt")
     async def ca_certificate() -> Response:
@@ -277,6 +288,30 @@ def create_app(svc: Services) -> FastAPI:
         if retry:
             audit("pair_blocked", logging.WARNING, ip=ip, retry_after=retry)
             return error(429, "locked_out", "Troppi tentativi falliti. Riprova più tardi.", retry_after=retry)
+
+        if not svc.password.is_set():
+            audit("pair_failed", logging.WARNING, ip=ip, reason="password_not_set")
+            return error(409, "password_not_set",
+                         "Imposta prima una password nella finestra di PadLink sul PC.")
+        # No pairing window: answer before checking the password, so /pair is never a password oracle.
+        if svc.pairing.active_until() is None:
+            await asyncio.sleep(0.4 + secrets.randbelow(400) / 1000)
+            audit("pair_failed", logging.WARNING, ip=ip, reason="no_session")
+            return error(401, "pairing_closed",
+                         "Nessuna associazione attiva. Sul PC apri PadLink e premi «Associa un nuovo telefono».")
+        # The password is checked before the PIN: a wrong password does not burn the PIN,
+        # but it counts towards the per-IP lockout like a wrong PIN.
+        if not await asyncio.to_thread(svc.password.verify, body.password):
+            await asyncio.sleep(0.4 + secrets.randbelow(400) / 1000)
+            lockout = svc.guard.fail(ip)
+            audit("password_failed", logging.WARNING, ip=ip, stage="pair", lockout=lockout or None)
+            if lockout:
+                return error(429, "locked_out", "Troppi tentativi falliti. Riprova più tardi.", retry_after=lockout)
+            return JSONResponse(
+                {"detail": {"code": "invalid_password", "message": "Password errata",
+                            "remaining_attempts": svc.guard.remaining_attempts(ip)}},
+                status_code=401,
+            )
 
         result = svc.pairing.verify(body.secret)
         if result is PairResult.OK:
@@ -315,6 +350,7 @@ def create_app(svc: Services) -> FastAPI:
         if not svc.refresh_limiter.allow(ip):
             return error(429, "rate_limited", "Troppe richieste", retry_after=5)
         body_token: str | None = None
+        data: Any = None
         if request.headers.get("content-type", "").startswith("application/json"):
             try:
                 data = await request.json()
@@ -322,10 +358,43 @@ def create_app(svc: Services) -> FastAPI:
                 data = None
             if isinstance(data, dict) and isinstance(data.get("refresh_token"), str):
                 body_token = data["refresh_token"]
+        password = data.get("password") if isinstance(data, dict) else None
         app_client = body_token is not None
         token = body_token if app_client else request.cookies.get(REFRESH_COOKIE)
         if not token or len(token) > 256:
             return error(401, "no_session", "Sessione assente", clear_cookie=True, svc=svc)
+
+        # PC password, asked on every app start. Checked before rotating, so a missing or
+        # wrong password never spends the refresh token. Invalid tokens fall through to
+        # rotate_refresh below, which reports them (and detects reuse) as before.
+        pw_device = svc.store.peek_refresh(token)
+        if pw_device is not None:
+            retry = svc.guard.retry_after(ip)
+            if retry:
+                return error(429, "locked_out", "Troppi tentativi falliti. Riprova più tardi.", retry_after=retry)
+            if not svc.password.is_set():
+                return error(401, "password_not_set", "Imposta una password nella finestra di PadLink sul PC.")
+            if not isinstance(password, str) or not password:
+                return error(401, "password_required", "Inserisci la password del PC")
+            if not await asyncio.to_thread(svc.password.verify, password):
+                await asyncio.sleep(0.4 + secrets.randbelow(400) / 1000)
+                lockout = svc.guard.fail(ip)
+                left = svc.store.password_failed(pw_device)
+                audit("password_failed", logging.WARNING, ip=ip, stage="refresh", device=pw_device,
+                      device_attempts_left=left, lockout=lockout or None)
+                if left == 0:
+                    audit("device_revoked", logging.WARNING, device=pw_device, by="password_failures", ip=ip)
+                    await svc.registry.close_device(pw_device, 4409, "revoked")
+                    return error(401, "device_revoked", "Troppe password errate: telefono revocato, ripeti il pairing",
+                                 clear_cookie=True, svc=svc)
+                if lockout:
+                    return error(429, "locked_out", "Troppi tentativi falliti. Riprova più tardi.", retry_after=lockout)
+                return JSONResponse(
+                    {"detail": {"code": "invalid_password", "message": "Password errata",
+                                "remaining_attempts": min(svc.guard.remaining_attempts(ip), left)}},
+                    status_code=401,
+                )
+            svc.guard.success(ip)
         try:
             device_id, new_token = svc.store.rotate_refresh(token, ip)
         except RefreshError as exc:
@@ -365,6 +434,7 @@ def create_app(svc: Services) -> FastAPI:
     # ---- screen & system ------------------------------------------------------------------
     @app.get("/api/screen/monitors")
     async def monitors(ctx: AuthContext = Depends(require_device)) -> dict[str, Any]:
+        require_perm(svc, ctx, "screen")
         return {"monitors": svc.monitors()}
 
     # ---- open applications (windows) -------------------------------------------------

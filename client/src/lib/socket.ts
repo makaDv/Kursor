@@ -5,7 +5,7 @@
  * expires a fresh token is pushed over the open socket, so the connection
  * survives token rotation without reconnecting.
  */
-import { forgetSession, getAccessToken, refresh } from './api'
+import { forgetSession, getAccessToken, isPasswordError, refresh } from './api'
 import { wsUrl } from './platform'
 import { openSocket, type SocketLike } from './transport'
 import { maybeRediscover } from './pc'
@@ -132,7 +132,9 @@ export class KursorSocket {
     let token: string | null
     try {
       token = await getAccessToken()
-    } catch {
+    } catch (err) {
+      // PC password needed: the app shows the unlock screen and restarts the socket after.
+      if (isPasswordError(err)) return this.setStatus('idle')
       this.scheduleRetry()
       return
     }
@@ -211,7 +213,8 @@ export class KursorSocket {
             this.setStatus('revoked')
             return
           }
-        } catch {
+        } catch (err) {
+          if (isPasswordError(err)) return this.setStatus('idle')
           /* offline: retry below */
         }
       }

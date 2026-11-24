@@ -7,6 +7,7 @@
     python -m kursor revoke <id>    revoke one device (live sessions closed within ~2 s)
     python -m kursor revoke-all     revoke every device and rotate the signing secret
     python -m kursor cert [--force] create/renew the local CA and server certificate
+    python -m kursor password       set or change the PC password asked by the app
 """
 
 from __future__ import annotations
@@ -233,6 +234,34 @@ def cmd_cert(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_password(args: argparse.Namespace) -> int:
+    import getpass
+
+    from .fsutil import ensure_private_dir
+    from .logging_setup import audit, setup_logging
+    from .security.password import PasswordError, PasswordStore, validate
+
+    s = _settings_from_args(args)
+    ensure_private_dir(s.data_dir)
+    setup_logging(s.log_dir, "WARNING")
+    store = PasswordStore(s.password_file)
+    print("Cambio password del PC." if store.is_set() else "Imposta la password del PC.")
+    print("L'app la chiederà a ogni apertura. Usa almeno 8 caratteri, diversa da quella di Windows.")
+    first = getpass.getpass("Nuova password: ")
+    try:
+        validate(first)
+    except PasswordError as exc:
+        print(f"ERRORE: {exc}", file=sys.stderr)
+        return 2
+    if getpass.getpass("Ripeti la password: ") != first:
+        print("ERRORE: le password non coincidono.", file=sys.stderr)
+        return 2
+    store.set(first)
+    audit("password_set", by="cli")
+    print("Password salvata. I telefoni connessi dovranno reinserirla.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="kursor", description="PadLink: controllo remoto sicuro del PC")
     p.add_argument("--version", action="version", version=__version__)
@@ -275,6 +304,8 @@ def build_parser() -> argparse.ArgumentParser:
     c = sub.add_parser("cert", help="genera/rinnova i certificati TLS locali")
     c.add_argument("--force", action="store_true", help="rigenera anche la CA")
     c.set_defaults(func=cmd_cert)
+
+    sub.add_parser("password", help="imposta o cambia la password del PC").set_defaults(func=cmd_password)
     return p
 
 

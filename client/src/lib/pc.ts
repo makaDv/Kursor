@@ -22,14 +22,30 @@ export async function rediscover(): Promise<boolean> {
   try {
     const { pcs } = await KursorNative.discover({ timeout: 3000 })
     const match = pcs.find((p) => p.fp === cfg.pin)
-    if (!match) return false
-    const origin = `https://${match.host}:${match.port}`
-    if (origin === cfg.origin) return false
-    await updateCurrentServer({ origin })
-    return true
+    if (match) {
+      const origin = `https://${match.host}:${match.port}`
+      if (origin === cfg.origin) return false
+      // Back on the LAN: keep the Tailscale address as the alternative.
+      const onTailscale = /^https:\/\/100\./.test(cfg.origin)
+      await updateCurrentServer({ origin, alt: onTailscale ? cfg.origin : cfg.alt })
+      return true
+    }
   } catch {
-    return false
+    /* discovery unavailable: try the other address below */
   }
+  return swapToAlternate()
+}
+
+/**
+ * Not found on the LAN (e.g. away from home): switch between the LAN address and the
+ * Tailscale address of the same PC. The pinned CA does not change, so this never
+ * lowers the trust placed in the connection.
+ */
+async function swapToAlternate(): Promise<boolean> {
+  const cfg = getServer()
+  if (!cfg?.pin || !cfg.alt || cfg.alt === cfg.origin) return false
+  await updateCurrentServer({ origin: cfg.alt, alt: cfg.origin })
+  return true
 }
 
 let lastRediscover = 0

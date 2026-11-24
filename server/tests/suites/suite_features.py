@@ -20,6 +20,8 @@ s = Settings(); s.data_dir = DATA; s.port = 18445; s.log_level = "WARNING"
 rt = prepare(s)
 srv = ServerThread(rt.uvicorn_config()); srv.start(); assert srv.wait_started()
 svc = rt.svc
+PW = "test-password-123"
+svc.password.set(PW)
 ctx = ssl.create_default_context(cafile=str(DATA / "certs" / "kursor-ca.crt"))
 BASE, ORIGIN = "https://127.0.0.1:18445", "https://localhost"
 fails = []
@@ -37,7 +39,7 @@ def call(method, path, body=None, token=None):
 
 def pair(name):
     pin = svc.pairing.new_session().pin
-    _, tok = call("POST", "/api/auth/pair", {"secret": pin, "device_name": name, "client": "app"})
+    _, tok = call("POST", "/api/auth/pair", {"secret": pin, "password": PW, "device_name": name, "client": "app"})
     return tok
 
 async def ws_first(path, token, read=2):
@@ -74,6 +76,7 @@ check("control WS still allowed", asyncio.run(ws_first("/ws/control", at))[-1].g
 check("power -> 403", call("POST", "/api/system/lock", {"confirm": "lock"}, at)[0] == 403)
 check("windows list -> 403", call("GET", "/api/windows", None, at)[0] == 403)
 check("clipboard -> 403", call("POST", "/api/clipboard/get", {}, at)[0] == 403)
+check("monitors -> 403 without screen perm", call("GET", "/api/screen/monitors", None, at)[0] == 403)
 st, body = call("GET", "/api/pc", None, at)
 check("/api/pc reports limited perms", st == 200 and body["perms"]["power"] is False, body)
 svc.store.set_perms(dev, {"screen": True, "apps": True, "clipboard": True, "power": True})
@@ -116,10 +119,31 @@ svc.prefs.update(require_approval=False); svc.approver_available = False
 # ---- persisted lockout
 svc.pairing.new_session()  # failures only count while a pairing window is open
 for _ in range(5):
-    call("POST", "/api/auth/pair", {"secret": "000000", "device_name": "x", "client": "app"})
+    call("POST", "/api/auth/pair", {"secret": "000000", "password": PW, "device_name": "x", "client": "app"})
 g = LoginGuard(path=s.lockout_file)
 check("lockout survives restart (file)", g.retry_after("127.0.0.1") > 0, s.lockout_file.read_text() if s.lockout_file.exists() else "no file")
 svc.guard.success("127.0.0.1")
+
+# ---- PC password: wrong passwords on refresh, revocation after 10, change invalidates tokens
+C = pair("Pw phone")
+st, body = call("POST", "/api/auth/refresh", {"refresh_token": C["refresh_token"], "password": "nope-nope"})
+check("refresh wrong password -> 401 invalid_password", st == 401 and body["detail"]["code"] == "invalid_password", body)
+st, body = call("POST", "/api/auth/refresh", {"refresh_token": C["refresh_token"], "password": PW})
+check("refresh token not spent by wrong password", st == 200 and body.get("refresh_token"), body)
+check("successful refresh resets device counter", svc.store._devices[C["device_id"]].get("pw_failures") == 0)
+svc.guard.success("127.0.0.1")
+left = [svc.store.password_failed(C["device_id"]) for _ in range(10)]
+check("device revoked after 10 wrong passwords", left[-2] == 1 and left[-1] == 0 and not svc.store.exists(C["device_id"]), left)
+D = pair("Pw change")
+check("access token works", call("GET", "/api/pc", None, D["access_token"])[0] == 200)
+svc.password.set("another-password-456")
+st, body = call("GET", "/api/pc", None, D["access_token"])
+check("password change -> old access token reported expired", st == 401 and body["detail"]["code"] == "token_expired", body)
+st, body = call("POST", "/api/auth/refresh", {"refresh_token": D["refresh_token"], "password": PW})
+check("old password refused after change", st == 401 and body["detail"]["code"] == "invalid_password", body)
+st, body = call("POST", "/api/auth/refresh", {"refresh_token": D["refresh_token"], "password": "another-password-456"})
+check("new password accepted", st == 200, body)
+svc.password.set(PW); svc.guard.success("127.0.0.1")
 
 # ---- QR image removed when the pairing ends
 png = DATA / "pairing-qr.png"

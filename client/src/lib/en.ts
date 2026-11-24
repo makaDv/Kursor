@@ -45,6 +45,17 @@ export const EN: Record<string, string> = {
   'Usa impronta, volto o PIN del telefono per continuare.': 'Use your fingerprint, face or phone PIN to continue.',
   'Sblocco non riuscito. Riprova.': 'Unlock failed. Try again.',
   Sblocca: 'Unlock',
+  // ---- PC password
+  'Password del PC': 'PC password',
+  'Inserisci la password impostata nella finestra di PadLink su «{pc}».': 'Enter the password set in the PadLink window on “{pc}”.',
+  'Password errata. Tentativi rimasti: {n}.': 'Wrong password. Attempts left: {n}.',
+  'Password errata': 'Wrong password',
+  'QR letto. Inserisci la password del PC e premi «Associa».': 'QR read. Enter the PC password and tap “Pair”.',
+  Associa: 'Pair',
+  'Inserisci la password del PC': 'Enter the PC password',
+  'Imposta prima una password nella finestra di PadLink sul PC.': 'First set a password in the PadLink window on the PC.',
+  'Imposta una password nella finestra di PadLink sul PC.': 'Set a password in the PadLink window on the PC.',
+  'Troppe password errate: telefono revocato, ripeti il pairing': 'Too many wrong passwords: phone revoked, pair again',
   'Sblocca PadLink': 'Unlock PadLink',
 
   // ---- terms / onboarding

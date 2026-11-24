@@ -11,7 +11,8 @@ PadLink includes the following open-source components. Each one remains under it
 | Tailwind CSS | MIT |
 | OkHttp, Okio (Android) | Apache-2.0 |
 | ZXing core, zxing-android-embedded (Android) | Apache-2.0 |
-| AndroidX libraries (Android) | Apache-2.0 |
+| AndroidX libraries incl. biometric (Android) | Apache-2.0 |
+| Google Play In-App Review (Android) | Apache-2.0 / Play Core terms |
 
 ## Windows program
 
@@ -26,11 +27,13 @@ PadLink includes the following open-source components. Each one remains under it
 | mss | MIT | |
 | Pillow | MIT-CMU (HPND) | |
 | qrcode | BSD-3-Clause | |
+| **zeroconf** | **LGPL-2.1-or-later** | mDNS announcement; see the LGPL note below |
+| ifaddr | MIT | |
 | **pynput** | **LGPL-3.0** | See the LGPL note below |
 | **pystray** | **LGPL-3.0** | See the LGPL note below |
 | Tcl/Tk (tkinter) | Tcl/Tk License (BSD-style) | |
 
-### LGPL-3.0 components (pynput, pystray)
+### LGPL components (pynput, pystray, zeroconf)
 
 These libraries are used without modification. The Windows installer uses PyInstaller's *one-folder* layout. Under the LGPL, the user may replace these libraries with a modified version. To do so, swap the corresponding modules in the installation folder, or rebuild with `packaging/windows/build.ps1`.
 

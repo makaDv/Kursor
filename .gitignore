@@ -48,3 +48,6 @@ keystore.properties
 *.aab
 *.apk
 *.ipa
+
+# Built website
+site/dist/

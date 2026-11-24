@@ -5,6 +5,7 @@ import asyncio, json, os, ssl, sys, time, urllib.request, urllib.error
 from pathlib import Path
 from kursor.security.pairing import PairingManager
 from kursor.security.tokens import load_or_create_secret
+from kursor.security.password import PasswordStore
 import websockets
 
 DATA = Path(os.environ["KURSOR_DATA_DIR"]); BASE = "https://127.0.0.1:18443"; APP = "https://localhost"
@@ -32,14 +33,16 @@ s, h, _ = req("OPTIONS", "/api/auth/pair", headers={"Origin": "https://evil.exam
 check("CORS preflight evil rejected", h.get("access-control-allow-origin") is None, (s, h))
 check("no credentials in CORS", "access-control-allow-credentials" not in h)
 
+PW = "test-password-123"
+PasswordStore(DATA / "password.json").set(PW)
 mgr = PairingManager(DATA / "pairing.json", load_or_create_secret(DATA / "secret.key"), 300, 5)
 pin = mgr.new_session().pin
-s, h, b = req("POST", "/api/auth/pair", {"secret": pin, "device_name": "Pixel", "client": "app"}, {"Origin": APP})
+s, h, b = req("POST", "/api/auth/pair", {"secret": pin, "password": PW, "device_name": "Pixel", "client": "app"}, {"Origin": APP})
 check("app pair -> refresh in body, no cookie", s == 200 and b.get("refresh_token") and "set-cookie" not in h, (s, b, h.get("set-cookie")))
 check("CORS header on response", h.get("access-control-allow-origin") == APP)
 rt, at = b["refresh_token"], b["access_token"]
 
-s, h, b = req("POST", "/api/auth/refresh", {"refresh_token": rt}, {"Origin": APP})
+s, h, b = req("POST", "/api/auth/refresh", {"refresh_token": rt, "password": PW}, {"Origin": APP})
 check("app refresh via body rotates", s == 200 and b.get("refresh_token") and b["refresh_token"] != rt, b)
 rt2 = b["refresh_token"]
 
@@ -50,8 +53,8 @@ async def ws():
 asyncio.run(ws())
 
 time.sleep(16)  # past reuse grace window
-s, _, b = req("POST", "/api/auth/refresh", {"refresh_token": rt}, {"Origin": APP})
+s, _, b = req("POST", "/api/auth/refresh", {"refresh_token": rt, "password": PW}, {"Origin": APP})
 check("reused old refresh -> revoked", s == 401 and b["detail"]["code"] == "reuse_detected", b)
-s, _, b = req("POST", "/api/auth/refresh", {"refresh_token": rt2}, {"Origin": APP})
+s, _, b = req("POST", "/api/auth/refresh", {"refresh_token": rt2, "password": PW}, {"Origin": APP})
 check("device gone after reuse", s == 401, b)
 print("RESULT:", "FAILED " + str(fails) if fails else "ALL PASSED")

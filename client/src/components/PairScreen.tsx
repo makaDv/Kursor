@@ -29,6 +29,9 @@ function describe(err: unknown): string {
     const min = Math.ceil(err.retryAfter / 60)
     return min === 1 ? t('Troppi tentativi falliti. Bloccato per 1 minuto.') : t('Troppi tentativi falliti. Bloccato per {n} minuti.', { n: min })
   }
+  if (err.code === 'invalid_password' && err.remainingAttempts !== undefined) {
+    return t('Password errata. Tentativi rimasti: {n}.', { n: err.remainingAttempts })
+  }
   if (err.code === 'invalid_code' && err.remainingAttempts !== undefined) {
     return t('Codice non valido. Tentativi rimasti: {n}.', { n: err.remainingAttempts })
   }
@@ -53,6 +56,10 @@ export default function PairScreen({
 }) {
   useLang()
   const [pin, setPin] = useState('')
+  const [password, setPassword] = useState('')
+  // QR / link scanned before the password was typed: paired when the form is submitted.
+  const [pendingLink, setPendingLink] = useState<{ origin: string; code: string; pin: string | null; alt: string | null } | null>(null)
+  const [pendingCode, setPendingCode] = useState<string | null>(null)
   const [name, setName] = useState(defaultDeviceName)
   const [server, setServerInput] = useState(() => getServer()?.origin.replace(/^https:\/\//, '') ?? '')
   const [busy, setBusy] = useState(false)
@@ -65,7 +72,7 @@ export default function PairScreen({
     setError(null)
     try {
       if (cfg) await setServer(cfg)
-      await pair(secret, name.trim() || defaultDeviceName())
+      await pair(secret, name.trim() || defaultDeviceName(), password)
       onPaired()
     } catch (err) {
       setError(describe(err))
@@ -80,8 +87,8 @@ export default function PairScreen({
    * - publicly trusted certificate (tunnel): system trust, no pin;
    * - otherwise: show the CA fingerprint as a verification code to compare on the PC.
    */
-  const nativePair = async (origin: string, secret: string, qrPin: string | null) => {
-    if (qrPin) return doPair(secret, { origin, pin: qrPin })
+  const nativePair = async (origin: string, secret: string, qrPin: string | null, alt: string | null = null) => {
+    if (qrPin) return doPair(secret, { origin, pin: qrPin, alt })
     const saved = getServer()
     setBusy(true)
     setError(null)
@@ -126,7 +133,12 @@ export default function PairScreen({
     const link = parsePairingLink(text)
     if (!link) return false
     setServerInput(link.origin.replace(/^https:\/\//, ''))
-    void nativePair(link.origin, link.code, link.pin)
+    if (!password) {
+      setPendingLink(link)
+      setError(t('QR letto. Inserisci la password del PC e premi «Associa».'))
+      return true
+    }
+    void nativePair(link.origin, link.code, link.pin, link.alt)
     return true
   }
 
@@ -146,7 +158,8 @@ export default function PairScreen({
     if (!initialCode || autoTried.current) return
     autoTried.current = true
     history.replaceState(null, '', location.pathname)
-    void doPair(initialCode)
+    // The PC password is needed too: pair when the user submits the form.
+    setPendingCode(initialCode)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCode])
 
@@ -218,9 +231,27 @@ export default function PairScreen({
         className="flex w-full max-w-xs flex-col gap-4"
         onSubmit={(e) => {
           e.preventDefault()
-          if (digits.length === 6) submitManual(digits)
+          if (!password) return
+          if (pendingLink) {
+            const link = pendingLink
+            setPendingLink(null)
+            void nativePair(link.origin, link.code, link.pin, link.alt)
+          } else if (pendingCode) {
+            void doPair(pendingCode)
+          } else if (digits.length === 6) submitManual(digits)
         }}
       >
+        <label className="flex flex-col gap-1 text-xs text-gray-400">
+          {t('Password del PC')}
+          <input
+            type="password"
+            autoComplete="current-password"
+            maxLength={128}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="field"
+          />
+        </label>
         {isNative && (
           <label className="flex flex-col gap-1 text-xs text-gray-400">
             {t('Indirizzo del PC')}
@@ -240,7 +271,7 @@ export default function PairScreen({
             />
           </label>
         )}
-        <input
+        {!pendingLink && !pendingCode && <input
           inputMode="numeric"
           autoComplete="one-time-code"
           pattern="[0-9]*"
@@ -250,7 +281,7 @@ export default function PairScreen({
           onChange={(e) => setPin(e.target.value)}
           className="rounded-2xl border border-white/5 bg-ink-800 py-4 text-center font-mono text-3xl tracking-[0.5em] outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
           aria-label="PIN"
-        />
+        />}
         <label className="flex flex-col gap-1 text-xs text-gray-400">
           {t('Nome dispositivo')}
           <input
@@ -262,10 +293,10 @@ export default function PairScreen({
         </label>
         <button
           type="submit"
-          disabled={busy || digits.length !== 6}
-          className={isNative ? 'btn-secondary' : 'btn-primary'}
+          disabled={busy || !password || (!pendingLink && !pendingCode && digits.length !== 6)}
+          className={isNative && !pendingLink ? 'btn-secondary' : 'btn-primary'}
         >
-          {busy ? t('Verifica…') : t('Associa con PIN')}
+          {busy ? t('Verifica…') : pendingLink || pendingCode ? t('Associa') : t('Associa con PIN')}
         </button>
         {error && <p className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-center text-sm text-red-300">{error}</p>}
       </form>
