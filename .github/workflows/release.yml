@@ -39,7 +39,7 @@ jobs:
         run: |
           python -m venv server\.venv
           ./packaging/windows/build.ps1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: windows, path: "dist/PadLink-Setup-*.exe" }
 
   android:
@@ -82,7 +82,7 @@ jobs:
             cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/out/PadLink-$VERSION.apk"
           fi
           rm -f keystore.properties
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: android, path: "${{ runner.temp }}/out/*.apk" }
 
   # Clean-machine check of the installer: silent install, first start, server answers,
@@ -135,7 +135,7 @@ jobs:
           foreach ($i in 1..30) { if (-not (Test-Path "$app\PadLink.exe")) { break }; Start-Sleep 1 }
           if (Test-Path "$app\PadLink.exe") { throw 'uninstall left PadLink.exe behind' }
           Write-Host 'Install, first start and uninstall OK'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with: { name: smoke-windows-screenshot, path: "${{ runner.temp }}/padlink-first-start.png", if-no-files-found: ignore }
 
