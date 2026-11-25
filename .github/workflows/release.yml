@@ -93,6 +93,7 @@ jobs:
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
           files: assets/*
+          overwrite_files: false   # never replace assets uploaded by hand (e.g. a locally signed APK)
           body: |
             **Come installare:** scarica `PadLink-Setup-*.exe` sul PC e `PadLink-*.apk` sul telefono Android.
             Guida completa: https://github.com/makaDv/Kursor/blob/main/docs/GUIDA.md
