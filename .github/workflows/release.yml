@@ -90,16 +90,21 @@ jobs:
   smoke-windows:
     needs: windows
     runs-on: windows-2025
+    timeout-minutes: 15
     steps:
       - uses: actions/download-artifact@v4
         with: { name: windows, path: setup }
       - name: Install, start, check, uninstall
         shell: pwsh
+        timeout-minutes: 8
         run: |
           $ErrorActionPreference = 'Stop'
           $setup = (Get-ChildItem setup\PadLink-Setup-*.exe).FullName
-          $p = Start-Process $setup -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          Write-Host "Installing $setup"
+          $p = Start-Process $setup -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -PassThru
+          if (-not $p.WaitForExit(180000)) { throw 'installer did not finish in 3 minutes' }
           if ($p.ExitCode -ne 0) { throw "installer exit code $($p.ExitCode)" }
+          Write-Host 'Installed'
           $app = Join-Path $env:LOCALAPPDATA 'Programs\PadLink'
           if (-not (Test-Path "$app\PadLink.exe")) { throw 'PadLink.exe not installed' }
           # Fresh user data; the terms are accepted in advance (the dialog needs a click).
@@ -111,7 +116,8 @@ jobs:
           foreach ($i in 1..60) {
             Start-Sleep 1
             if ($proc.HasExited) { throw "PadLink exited early (code $($proc.ExitCode))" }
-            $code = & curl.exe -k -s -o NUL -w '%{http_code}' https://127.0.0.1:8443/api/health
+            $code = & curl.exe -k -s --max-time 5 -o NUL -w '%{http_code}' https://127.0.0.1:8443/api/health
+            Write-Host "try $i -> $code"
             if ($code -ne '000') { break }
           }
           Write-Host "GET /api/health -> HTTP $code"
@@ -123,8 +129,10 @@ jobs:
           $bmp.Save("$env:RUNNER_TEMP\padlink-first-start.png")
           Stop-Process -Id $proc.Id -Force
           Start-Sleep 2
-          $u = Start-Process "$app\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
-          Start-Sleep 3
+          Write-Host 'Uninstalling'
+          $u = Start-Process "$app\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -PassThru
+          if (-not $u.WaitForExit(120000)) { throw 'uninstaller did not finish in 2 minutes' }
+          foreach ($i in 1..30) { if (-not (Test-Path "$app\PadLink.exe")) { break }; Start-Sleep 1 }
           if (Test-Path "$app\PadLink.exe") { throw 'uninstall left PadLink.exe behind' }
           Write-Host 'Install, first start and uninstall OK'
       - uses: actions/upload-artifact@v4
