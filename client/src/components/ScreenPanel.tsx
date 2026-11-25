@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { t, useLang } from '../lib/i18n'
-import { KursorSocket, type Monitor, type SocketStatus } from '../lib/socket'
+import { PadLinkSocket, type Monitor, type SocketStatus } from '../lib/socket'
 import { getPrefs, haptic, usePrefs } from '../lib/settings'
 import Trackpad from './Trackpad'
 import { Icon } from './Icon'
 import { useSecureScreen } from '../lib/pc'
 
-// Must match server/kursor/control/screen.py HEADER ("<IffHHB3x", 20 bytes).
+// Must match server/padlink/control/screen.py HEADER ("<IffHHB3x", 20 bytes).
 const HEADER_SIZE = 20
 const MIME = ['image/jpeg', 'image/webp']
 
 type Mode = 'touch' | 'trackpad'
 
-export default function ScreenPanel({ control }: { control: KursorSocket }) {
+export default function ScreenPanel({ control }: { control: PadLinkSocket }) {
   useLang()
   useSecureScreen() // the PC screen must not end up in screenshots or the recents preview
   const [prefs, setPrefs] = usePrefs()
@@ -41,7 +41,7 @@ export default function ScreenPanel({ control }: { control: KursorSocket }) {
 
   const screen = useMemo(() => {
     let decoding = false
-    const sock: KursorSocket = new KursorSocket({
+    const sock: PadLinkSocket = new PadLinkSocket({
       path: '/ws/screen',
       onStatus: (s) => {
         setStatus(s)

@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import subprocess, sys, time
-from kursor.control import windows
+from padlink.control import windows
 
 TITLE = "PadLink-test-window-7731"
 child = subprocess.Popen([sys.executable, "-c",

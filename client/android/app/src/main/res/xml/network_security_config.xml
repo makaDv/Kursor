@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   No cleartext traffic, ever, and only the system CAs.
-  Connections to the user's PC do not go through the WebView: the KursorNative
+  Connections to the user's PC do not go through the WebView: the PadLinkNative
   plugin pins the PC's local CA (fingerprint from the pairing QR code), so no
   certificate ever needs to be installed on the phone and user-installed CAs
   are deliberately NOT trusted.

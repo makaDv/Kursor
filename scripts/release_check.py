@@ -47,8 +47,8 @@ def check_placeholders() -> None:
 def check_versions() -> None:
     v = json.loads(read("client/package.json"))["version"]
     found = {
-        "server/kursor/__init__.py": re.search(r'__version__ = "([^"]+)"', read("server/kursor/__init__.py")),
-        "packaging/windows/kursor.iss": re.search(r'#define AppVersion "([^"]+)"', read("packaging/windows/kursor.iss")),
+        "server/padlink/__init__.py": re.search(r'__version__ = "([^"]+)"', read("server/padlink/__init__.py")),
+        "packaging/windows/padlink.iss": re.search(r'#define AppVersion "([^"]+)"', read("packaging/windows/padlink.iss")),
         "packaging/windows/version_info.txt": re.search(r"'ProductVersion', '([^']+)'", read("packaging/windows/version_info.txt")),
     }
     for rel, m in found.items():
@@ -95,9 +95,9 @@ def check_audits() -> None:
 
 
 def check_updates() -> None:
-    text = read("server/kursor/updates.py")
+    text = read("server/padlink/updates.py")
     if re.search(r"^UPDATE_URL: str \| None = None", text, re.M):
-        warnings.append("server/kursor/updates.py: signed updates for the website installer are off (UPDATE_URL)")
+        warnings.append("server/padlink/updates.py: signed updates for the website installer are off (UPDATE_URL)")
 
 
 def main() -> int:

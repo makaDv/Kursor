@@ -31,7 +31,7 @@
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 
 # PadLink native bridge (pinned TLS, secure storage, QR scanner).
--keep class io.github.makadv.kursor.nativebridge.** { *; }
+-keep class io.github.makadv.padlink.nativebridge.** { *; }
 
 # ZXing scanner activity (started by class name from the plugin).
 -keep class com.journeyapps.barcodescanner.** { *; }

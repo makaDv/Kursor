@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { KursorSocket } from '../lib/socket'
+import type { PadLinkSocket } from '../lib/socket'
 import { t, useLang } from '../lib/i18n'
 import { getPrefs, haptic, usePrefs } from '../lib/settings'
 
@@ -33,7 +33,7 @@ function centroid(list: TouchList): Pt {
   return { x: x / list.length, y: y / list.length }
 }
 
-export default function Trackpad({ socket, full = false }: { socket: KursorSocket; full?: boolean }) {
+export default function Trackpad({ socket, full = false }: { socket: PadLinkSocket; full?: boolean }) {
   useLang()
   const [prefs] = usePrefs()
   const padRef = useRef<HTMLDivElement>(null)

@@ -6,9 +6,9 @@ import asyncio, json, shutil, ssl, sys, threading, time, urllib.request, urllib.
 from pathlib import Path
 
 import websockets
-from kursor.config import Settings
-from kursor.runtime import prepare
-from kursor.desktop import ServerThread
+from padlink.config import Settings
+from padlink.runtime import prepare
+from padlink.desktop import ServerThread
 
 import tempfile
 DATA = Path(tempfile.gettempdir()) / "padlink-test-pause"
@@ -19,7 +19,7 @@ srv = ServerThread(rt.uvicorn_config()); srv.start(); assert srv.wait_started()
 svc = rt.svc
 PW = "test-password-123"
 svc.password.set(PW)
-ctx = ssl.create_default_context(cafile=str(DATA / "certs" / "kursor-ca.crt"))
+ctx = ssl.create_default_context(cafile=str(DATA / "certs" / "padlink-ca.crt"))
 BASE, ORIGIN = "https://127.0.0.1:18444", "https://localhost"
 fails = []
 def check(name, ok, extra=""):

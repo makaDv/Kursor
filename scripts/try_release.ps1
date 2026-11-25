@@ -37,6 +37,6 @@ if (-not (Test-Path $py)) { $py = Join-Path $root 'server\.venv\Scripts\python.e
 if (-not (Test-Path (Join-Path $root 'client\dist\index.html'))) {
     Push-Location (Join-Path $root 'client'); npm run build; Pop-Location
 }
-Start-Process -FilePath $py -ArgumentList @('-m', 'kursor', '--data-dir', $data, 'desktop') `
+Start-Process -FilePath $py -ArgumentList @('-m', 'padlink', '--data-dir', $data, 'desktop') `
     -WorkingDirectory (Join-Path $root 'server')
 Write-Host "PadLink di prova avviato (dati in $data)."

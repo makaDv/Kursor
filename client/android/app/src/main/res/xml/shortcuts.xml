@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Long-press the app icon: jump straight to a tab (KursorNative.getLaunchTab). -->
+<!-- Long-press the app icon: jump straight to a tab (PadLinkNative.getLaunchTab). -->
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
     <shortcut android:shortcutId="trackpad" android:enabled="true" android:icon="@mipmap/ic_launcher"
         android:shortcutShortLabel="@string/shortcut_trackpad">

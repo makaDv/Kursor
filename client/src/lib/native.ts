@@ -1,5 +1,5 @@
 /**
- * Typed binding of the KursorNative plugin (client/native/kursor-native).
+ * Typed binding of the PadLinkNative plugin (client/native/padlink-native).
  * Android: OkHttp + Android Keystore + ZXing. iOS: URLSession + Keychain + AVFoundation.
  */
 import { registerPlugin, type PluginListenerHandle } from '@capacitor/core'
@@ -16,7 +16,7 @@ export type NativeWsEvent =
   | { id: string; type: 'binary'; data: string } // base64
   | { id: string; type: 'close'; code: number; reason?: string }
 
-export interface KursorNativePlugin {
+export interface PadLinkNativePlugin {
   secureGet(o: { key: string }): Promise<{ value: string | null }>
   secureSet(o: { key: string; value: string }): Promise<void>
   secureRemove(o: { key: string }): Promise<void>
@@ -65,4 +65,4 @@ export interface KursorNativePlugin {
   addListener(event: 'launchTab', fn: (ev: { tab: string }) => void): Promise<PluginListenerHandle>
 }
 
-export const KursorNative = registerPlugin<KursorNativePlugin>('KursorNative')
+export const PadLinkNative = registerPlugin<PadLinkNativePlugin>('PadLinkNative')

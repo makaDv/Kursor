@@ -141,14 +141,14 @@ def ios() -> None:
     print(f"iOS icon/splash written to {IOS_ASSETS}")
 
 
-# ---- Windows desktop app (server/kursor/assets) -------------------------------
-DESKTOP_ASSETS = Path(__file__).resolve().parents[1] / "server" / "kursor" / "assets"
+# ---- Windows desktop app (server/padlink/assets) -------------------------------
+DESKTOP_ASSETS = Path(__file__).resolve().parents[1] / "server" / "padlink" / "assets"
 
 
 def desktop() -> None:
     DESKTOP_ASSETS.mkdir(parents=True, exist_ok=True)
     big = render(256)
-    big.save(DESKTOP_ASSETS / "kursor.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+    big.save(DESKTOP_ASSETS / "padlink.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
     tray = render(64)
     tray.save(DESKTOP_ASSETS / "tray.png")
     active = tray.copy()

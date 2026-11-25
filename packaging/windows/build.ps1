@@ -38,14 +38,14 @@ Write-Host '== icons'
 & $py scripts\make_icons.py
 
 Write-Host '== PyInstaller'
-& $py -m PyInstaller packaging\windows\kursor.spec --noconfirm --clean --distpath dist --workpath build\pyinstaller
+& $py -m PyInstaller packaging\windows\padlink.spec --noconfirm --clean --distpath dist --workpath build\pyinstaller
 if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed' }
 
 $iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") |
     Where-Object { Test-Path $_ } | Select-Object -First 1
 if ($iscc) {
     Write-Host '== installer'
-    & $iscc packaging\windows\kursor.iss
+    & $iscc packaging\windows\padlink.iss
     if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed' }
 } else {
     Write-Warning 'Inno Setup 6 not found: only dist\PadLink\ was produced (winget install JRSoftware.InnoSetup)'

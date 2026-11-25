@@ -4,7 +4,7 @@
  */
 import { useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
-import { KursorNative } from './native'
+import { PadLinkNative } from './native'
 import { getServer, isNative, updateCurrentServer } from './platform'
 import { getPrefs } from './settings'
 
@@ -21,7 +21,7 @@ export async function rediscover(): Promise<boolean> {
   const cfg = getServer()
   if (!isNative || !cfg?.pin) return false
   try {
-    const { pcs } = await KursorNative.discover({ timeout: 3000 })
+    const { pcs } = await PadLinkNative.discover({ timeout: 3000 })
     const match = pcs.find((p) => p.fp === cfg.pin)
     if (match) {
       const origin = `https://${match.host}:${match.port}`
@@ -59,9 +59,9 @@ let secureUsers = 0
 export function useSecureScreen(active = true): void {
   useEffect(() => {
     if (!isNative || !active) return
-    if (secureUsers++ === 0) void KursorNative.setSecure({ enabled: true }).catch(() => undefined)
+    if (secureUsers++ === 0) void PadLinkNative.setSecure({ enabled: true }).catch(() => undefined)
     return () => {
-      if (--secureUsers === 0) void KursorNative.setSecure({ enabled: false }).catch(() => undefined)
+      if (--secureUsers === 0) void PadLinkNative.setSecure({ enabled: false }).catch(() => undefined)
     }
   }, [active])
 }
@@ -78,7 +78,7 @@ export async function wakePc(): Promise<boolean> {
   const mac = getServer()?.mac
   if (!canWakeOnLan || !mac) return false
   try {
-    await KursorNative.wakeOnLan({ mac })
+    await PadLinkNative.wakeOnLan({ mac })
     return true
   } catch {
     return false
@@ -92,7 +92,7 @@ export async function biometricAvailable(): Promise<boolean> {
   if (!isNative) return false
   if (bioAvailable === null) {
     try {
-      bioAvailable = (await KursorNative.biometricAvailable()).available
+      bioAvailable = (await PadLinkNative.biometricAvailable()).available
     } catch {
       bioAvailable = false
     }
@@ -106,7 +106,7 @@ export async function confirmWithBiometrics(reason: string, kind: 'unlock' | 'po
   const wanted = kind === 'unlock' ? prefs.biometricLock : prefs.biometricPower
   if (!wanted || !(await biometricAvailable())) return true
   try {
-    return (await KursorNative.biometricAuth({ reason })).ok
+    return (await PadLinkNative.biometricAuth({ reason })).ok
   } catch {
     return false
   }
@@ -156,7 +156,7 @@ export function noteGoodSession() {
   window.setTimeout(() => {
     if (sessionHadError || document.visibilityState !== 'visible') return
     writeReview({ ...readReview(), askedAt: Date.now() })
-    void KursorNative.requestReview().catch(() => undefined)
+    void PadLinkNative.requestReview().catch(() => undefined)
   }, 120_000)
 }
 
@@ -164,7 +164,7 @@ export function noteGoodSession() {
 export async function launchTab(): Promise<string | null> {
   if (!isNative) return null
   try {
-    return (await KursorNative.getLaunchTab()).tab
+    return (await PadLinkNative.getLaunchTab()).tab
   } catch {
     return null
   }

@@ -5,15 +5,15 @@ import asyncio, json, os, ssl, struct, subprocess, sys, time, urllib.request, ur
 from http.cookies import SimpleCookie
 from pathlib import Path
 
-from kursor.security.pairing import PairingManager
-from kursor.security.tokens import load_or_create_secret
-from kursor.security.password import PasswordStore
+from padlink.security.pairing import PairingManager
+from padlink.security.tokens import load_or_create_secret
+from padlink.security.password import PasswordStore
 import websockets
 
-DATA = Path(os.environ["KURSOR_DATA_DIR"])
+DATA = Path(os.environ["PADLINK_DATA_DIR"])
 BASE = "https://127.0.0.1:18443"
 ORIGIN = BASE
-ctx = ssl.create_default_context(cafile=str(DATA / "certs" / "kursor-ca.crt"))
+ctx = ssl.create_default_context(cafile=str(DATA / "certs" / "padlink-ca.crt"))
 
 def req(method, path, body=None, headers=None):
     h = {"Content-Type": "application/json", **(headers or {})}
@@ -64,7 +64,7 @@ s, h, b = req("POST", "/api/auth/pair", {"secret": sess.pin, "password": PW, "de
 check("correct pin -> 200", s == 200 and "access_token" in b, b)
 token = b["access_token"]
 c = SimpleCookie(); c.load(h["set-cookie"])
-rt = c["kursor_rt"].value
+rt = c["padlink_rt"].value
 check("refresh cookie flags", all(x in h["set-cookie"].lower() for x in ["httponly", "secure", "samesite=strict", "path=/api/auth"]), h["set-cookie"])
 
 s, _, b = req("POST", "/api/auth/pair", {"secret": sess.pin, "password": PW, "device_name": "x"}, {"Origin": ORIGIN})
@@ -75,11 +75,11 @@ check("devices list", s == 200 and len(b["devices"]) == 1 and b["devices"][0]["c
 s, _, b = req("GET", "/api/devices", headers={"Authorization": "Bearer garbage"})
 check("bad bearer -> 401", s == 401, b)
 
-s, _, b = req("POST", "/api/auth/refresh", {}, {"Origin": ORIGIN, "Cookie": f"kursor_rt={rt}"})
+s, _, b = req("POST", "/api/auth/refresh", {}, {"Origin": ORIGIN, "Cookie": f"padlink_rt={rt}"})
 check("refresh without password -> 401 password_required", s == 401 and b["detail"]["code"] == "password_required", b)
-s, h, b = req("POST", "/api/auth/refresh", {"password": PW}, {"Origin": ORIGIN, "Cookie": f"kursor_rt={rt}"})
+s, h, b = req("POST", "/api/auth/refresh", {"password": PW}, {"Origin": ORIGIN, "Cookie": f"padlink_rt={rt}"})
 check("refresh rotates", s == 200 and "access_token" in b, b)
-c = SimpleCookie(); c.load(h["set-cookie"]); rt2 = c["kursor_rt"].value
+c = SimpleCookie(); c.load(h["set-cookie"]); rt2 = c["padlink_rt"].value
 check("new refresh token differs", rt2 != rt)
 
 s, _, b = req("POST", "/api/system/shutdown", {"confirm": "nope"}, {"Origin": ORIGIN, "Authorization": "Bearer " + token})
@@ -130,7 +130,7 @@ async def ws_tests():
         ready = json.loads(await ws.recv())
         dev = json.loads((DATA / "devices.json").read_text())["devices"]
         did = list(dev)[0]
-        out = subprocess.run([sys.executable, "-m", "kursor", "revoke", did[:6]], capture_output=True, text=True,
+        out = subprocess.run([sys.executable, "-m", "padlink", "revoke", did[:6]], capture_output=True, text=True,
                              cwd=str(Path(__file__).resolve().parents[2]))
         check("cli revoke", out.returncode == 0, out.stderr + out.stdout)
         try:
@@ -142,7 +142,7 @@ asyncio.run(ws_tests())
 
 s, _, b = req("GET", "/api/devices", headers={"Authorization": "Bearer " + token})
 check("revoked access token rejected", s == 401 and b["detail"]["code"] == "device_revoked", b)
-s, _, b = req("POST", "/api/auth/refresh", {}, {"Origin": ORIGIN, "Cookie": f"kursor_rt={rt2}"})
+s, _, b = req("POST", "/api/auth/refresh", {}, {"Origin": ORIGIN, "Cookie": f"padlink_rt={rt2}"})
 check("revoked refresh rejected", s == 401, b)
 
 # brute force: new session, 5 wrong attempts -> lockout + pairing destroyed

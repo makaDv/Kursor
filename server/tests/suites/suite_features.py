@@ -7,11 +7,11 @@ import asyncio, json, shutil, ssl, sys, threading, time, urllib.request, urllib.
 from pathlib import Path
 
 import websockets
-from kursor.config import Settings
-from kursor.runtime import prepare
-from kursor.desktop import ServerThread
-from kursor.control import clipboard
-from kursor.security.ratelimit import LoginGuard
+from padlink.config import Settings
+from padlink.runtime import prepare
+from padlink.desktop import ServerThread
+from padlink.control import clipboard
+from padlink.security.ratelimit import LoginGuard
 
 import tempfile
 DATA = Path(tempfile.gettempdir()) / "padlink-test-features"
@@ -22,7 +22,7 @@ srv = ServerThread(rt.uvicorn_config()); srv.start(); assert srv.wait_started()
 svc = rt.svc
 PW = "test-password-123"
 svc.password.set(PW)
-ctx = ssl.create_default_context(cafile=str(DATA / "certs" / "kursor-ca.crt"))
+ctx = ssl.create_default_context(cafile=str(DATA / "certs" / "padlink-ca.crt"))
 BASE, ORIGIN = "https://127.0.0.1:18445", "https://localhost"
 fails = []
 def check(name, ok, extra=""):
@@ -146,7 +146,7 @@ check("new password accepted", st == 200, body)
 svc.password.set(PW); svc.guard.success("127.0.0.1")
 
 # ---- password strength rules
-from kursor.security.password import PasswordError, validate
+from padlink.security.password import PasswordError, validate
 def _refused(pw, pc=None):
     try:
         validate(pw, pc); return False

@@ -24,7 +24,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         completionHandler(storeLaunchTab(shortcutItem))
     }
 
-    /// Hands the requested tab to the KursorNative plugin (UserDefaults + notification, see Extras.swift).
+    /// Hands the requested tab to the PadLinkNative plugin (UserDefaults + notification, see Extras.swift).
     @discardableResult
     private func storeLaunchTab(_ item: UIApplicationShortcutItem) -> Bool {
         let prefix = "padlink.tab."

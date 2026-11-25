@@ -10,7 +10,7 @@ updates:
     schedule: { interval: weekly }
     open-pull-requests-limit: 5
   - package-ecosystem: gradle
-    directory: /client/native/kursor-native/android
+    directory: /client/native/padlink-native/android
     schedule: { interval: monthly }
   - package-ecosystem: github-actions
     directory: /

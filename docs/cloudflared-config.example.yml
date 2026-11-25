@@ -2,7 +2,7 @@
 # or ~/.cloudflared/config.yml (Linux/macOS) and replace the placeholders.
 #
 # PadLink must run in tunnel mode, bound to loopback only:
-#   python -m kursor run --host 127.0.0.1 --port 8080 --no-tls \
+#   python -m padlink run --host 127.0.0.1 --port 8080 --no-tls \
 #       --public-origin https://padlink.example.com --trust-proxy
 
 tunnel: <TUNNEL-UUID>

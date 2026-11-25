@@ -35,8 +35,8 @@ def _run(script: str, env: dict | None = None, timeout: int = 240) -> str:
 @pytest.mark.parametrize("script", ["suite_api.py", "suite_app_client.py"])
 def test_against_live_server(script: str) -> None:
     data = Path(tempfile.mkdtemp(prefix="padlink-test-"))
-    env = {**os.environ, "KURSOR_DATA_DIR": str(data), "PYTHONIOENCODING": "utf-8"}
-    srv = subprocess.Popen([sys.executable, "-m", "kursor", "run", "--port", "18443", "--no-pair",
+    env = {**os.environ, "PADLINK_DATA_DIR": str(data), "PYTHONIOENCODING": "utf-8"}
+    srv = subprocess.Popen([sys.executable, "-m", "padlink", "run", "--port", "18443", "--no-pair",
                             "--log-level", "WARNING"], cwd=SERVER, env=env,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:

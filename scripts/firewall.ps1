@@ -43,7 +43,7 @@ Write-Host "Rules created for TCP $Port (LAN on Private networks + Tailscale 100
 
 # Rules created by the Windows prompt can be broader (e.g. Public networks, any address).
 $broad = Get-NetFirewallRule -Direction Inbound -Enabled True -ErrorAction SilentlyContinue |
-    Where-Object { $_.DisplayName -match 'python|padlink|kursor' -and $names -notcontains $_.DisplayName }
+    Where-Object { $_.DisplayName -match 'python|padlink|padlink' -and $names -notcontains $_.DisplayName }
 if ($broad) {
     Write-Host ''
     Write-Host 'Review these other rules (a Block rule overrides the Tailscale rule; an Allow rule on Public is broader than needed):'

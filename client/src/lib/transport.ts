@@ -2,10 +2,10 @@
  * HTTP + WebSocket transport.
  *
  * PWA: plain fetch/WebSocket (same origin, browser-validated TLS).
- * Store apps: everything goes through the KursorNative plugin, which pins the
+ * Store apps: everything goes through the PadLinkNative plugin, which pins the
  * PC's CA certificate. The WebView itself never talks to the network.
  */
-import { KursorNative, type NativeWsEvent } from './native'
+import { PadLinkNative, type NativeWsEvent } from './native'
 import { getServer, isNative } from './platform'
 
 export interface HttpResponse {
@@ -56,7 +56,7 @@ export async function httpRequest(
   }
 
   try {
-    const r = await KursorNative.request({
+    const r = await PadLinkNative.request({
       url,
       method,
       headers: init.headers,
@@ -125,7 +125,7 @@ let listening: Promise<unknown> | null = null
 
 function ensureListener() {
   if (!listening) {
-    listening = KursorNative.addListener('ws', (ev) => {
+    listening = PadLinkNative.addListener('ws', (ev) => {
       const h = handlers.get(ev.id)
       if (h) h(ev)
       else {
@@ -163,10 +163,10 @@ class NativeSocket implements SocketLike {
   private async start(url: string) {
     try {
       await ensureListener()
-      const { id } = await KursorNative.wsOpen({ url, pin: getServer()?.pin ?? undefined })
+      const { id } = await PadLinkNative.wsOpen({ url, pin: getServer()?.pin ?? undefined })
       this.id = id
       if (this.done) {
-        void KursorNative.wsClose({ id })
+        void PadLinkNative.wsClose({ id })
         return
       }
       handlers.set(id, (ev) => this.handle(ev))
@@ -219,7 +219,7 @@ class NativeSocket implements SocketLike {
   send(text: string) {
     if (!this.open || !this.id) return
     this.inflight += text.length
-    void KursorNative.wsSend({ id: this.id, data: text })
+    void PadLinkNative.wsSend({ id: this.id, data: text })
       .then((r) => {
         this.queued = r.buffered
       })
@@ -234,7 +234,7 @@ class NativeSocket implements SocketLike {
     this.done = true
     this.open = false
     // The native "close" event (still routed to this socket) reports it via finish().
-    if (this.id) void KursorNative.wsClose({ id: this.id, code })
+    if (this.id) void PadLinkNative.wsClose({ id: this.id, code })
   }
 }
 

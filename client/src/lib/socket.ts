@@ -39,7 +39,7 @@ interface Options {
 
 const MAX_BACKOFF = 10_000
 
-export class KursorSocket {
+export class PadLinkSocket {
   private ws: SocketLike | null = null
   private opts: Options
   private status: SocketStatus = 'idle'

@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 NODE = ROOT / "client" / "node_modules"
 SEP = "\n" + "=" * 78 + "\n"
 
-# Java/Kotlin libraries compiled into the Android app (see kursor-native/android/build.gradle).
+# Java/Kotlin libraries compiled into the Android app (see padlink-native/android/build.gradle).
 ANDROID_APACHE = [
     ("OkHttp", "Copyright 2019 Square, Inc."),
     ("Okio", "Copyright 2013 Square, Inc."),
@@ -44,7 +44,7 @@ def _npm_tree(names: list[str]) -> list[str]:
     stack = list(names)
     while stack:
         name = stack.pop()
-        if name in seen or name == "kursor-native":
+        if name in seen or name == "padlink-native":
             continue
         pkg = NODE / name / "package.json"
         if not pkg.exists():

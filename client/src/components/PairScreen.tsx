@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApiError, pair } from '../lib/api'
 import { t, useLang } from '../lib/i18n'
-import { KursorNative } from '../lib/native'
+import { PadLinkNative } from '../lib/native'
 import {
   apiUrl,
   getServer,
@@ -95,7 +95,7 @@ export default function PairScreen({
     setBusy(true)
     setError(null)
     try {
-      const probe = await KursorNative.probe({ url: origin })
+      const probe = await PadLinkNative.probe({ url: origin })
       if (probe.publiclyTrusted) {
         setBusy(false)
         return doPair(secret, { origin, pin: null })
@@ -147,7 +147,7 @@ export default function PairScreen({
   const scan = async () => {
     setError(null)
     try {
-      const { value } = await KursorNative.scanQr()
+      const { value } = await PadLinkNative.scanQr()
       if (value && !handleLink(value)) setError(t('Questo QR non è un codice di associazione PadLink.'))
     } catch {
       setError(t('Fotocamera non disponibile. Inserisci indirizzo e PIN a mano.'))

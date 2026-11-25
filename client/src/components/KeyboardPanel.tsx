@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { api, ApiError } from '../lib/api'
 import { t, useLang } from '../lib/i18n'
-import type { KursorSocket } from '../lib/socket'
+import type { PadLinkSocket } from '../lib/socket'
 import { getPrefs, haptic, usePrefs } from '../lib/settings'
 import { Icon } from './Icon'
 
@@ -70,7 +70,7 @@ function commonPrefix(a: string, b: string) {
   return i
 }
 
-export default function KeyboardPanel({ socket, canClipboard = true }: { socket: KursorSocket; canClipboard?: boolean }) {
+export default function KeyboardPanel({ socket, canClipboard = true }: { socket: PadLinkSocket; canClipboard?: boolean }) {
   useLang()
   const [prefs, setPrefs] = usePrefs()
   const [clipNote, setClipNote] = useState<{ ok: boolean; text: string } | null>(null)

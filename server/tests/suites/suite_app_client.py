@@ -3,13 +3,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import asyncio, json, os, ssl, sys, time, urllib.request, urllib.error
 from pathlib import Path
-from kursor.security.pairing import PairingManager
-from kursor.security.tokens import load_or_create_secret
-from kursor.security.password import PasswordStore
+from padlink.security.pairing import PairingManager
+from padlink.security.tokens import load_or_create_secret
+from padlink.security.password import PasswordStore
 import websockets
 
-DATA = Path(os.environ["KURSOR_DATA_DIR"]); BASE = "https://127.0.0.1:18443"; APP = "https://localhost"
-ctx = ssl.create_default_context(cafile=str(DATA / "certs" / "kursor-ca.crt"))
+DATA = Path(os.environ["PADLINK_DATA_DIR"]); BASE = "https://127.0.0.1:18443"; APP = "https://localhost"
+ctx = ssl.create_default_context(cafile=str(DATA / "certs" / "padlink-ca.crt"))
 fails = []
 def check(n, c, x=""):
     print(("PASS " if c else "FAIL ") + n, "" if c else x)

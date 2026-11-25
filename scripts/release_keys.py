@@ -1,4 +1,4 @@
-"""Release signing for the PadLink update manifest (see server/kursor/updates.py).
+"""Release signing for the PadLink update manifest (see server/padlink/updates.py).
 
     python scripts/release_keys.py keygen  <dir-outside-the-repo>
     python scripts/release_keys.py sign    <private.key> latest.json   -> writes latest.json.sig

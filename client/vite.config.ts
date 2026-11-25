@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // In development the PadLink daemon must run with `--dev`; Vite proxies API and
 // WebSocket traffic to it so the browser only ever talks to one origin.
-const backend = process.env.KURSOR_BACKEND ?? 'https://localhost:8443'
+const backend = process.env.PADLINK_BACKEND ?? 'https://localhost:8443'
 
 // Content-Security-Policy for the bundled store apps (the PWA also gets a stricter
 // header from the server; both apply). Build only: the Vite dev server needs inline scripts.

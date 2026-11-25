@@ -2,7 +2,7 @@
 
 /*
  * PadLink design tokens. The Windows program uses the same values
- * (server/kursor/desktop.py: BG, CARD, CARD2, LINE, ACCENT, ACCENT2, GREEN, AMBER, RED),
+ * (server/padlink/desktop.py: BG, CARD, CARD2, LINE, ACCENT, ACCENT2, GREEN, AMBER, RED),
  * so the phone and the PC look like one product.
  */
 @theme {

@@ -1,10 +1,10 @@
 /**
  * Runtime differences between the PWA (served by the PC itself, same origin)
  * and the store apps (assets bundled in the app, PC reached through the native
- * KursorNative plugin with certificate pinning).
+ * PadLinkNative plugin with certificate pinning).
  */
 import { Capacitor } from '@capacitor/core'
-import { KursorNative } from './native'
+import { PadLinkNative } from './native'
 
 export const isNative = Capacitor.isNativePlatform()
 
@@ -119,7 +119,7 @@ function valid(cfg: ServerConfig | null | undefined): cfg is ServerConfig {
 
 async function persist(): Promise<void> {
   try {
-    await KursorNative.secureSet({ key: SERVERS_KEY, value: JSON.stringify({ current: currentId, list: servers }) })
+    await PadLinkNative.secureSet({ key: SERVERS_KEY, value: JSON.stringify({ current: currentId, list: servers }) })
   } catch {
     /* keystore unavailable: config lasts until the app is closed */
   }
@@ -137,7 +137,7 @@ export function listServers(): ServerConfig[] {
 export async function loadServer(): Promise<ServerConfig | null> {
   if (!isNative) return null
   try {
-    const { value } = await KursorNative.secureGet({ key: SERVERS_KEY })
+    const { value } = await PadLinkNative.secureGet({ key: SERVERS_KEY })
     if (value) {
       const data = JSON.parse(value) as { current: string | null; list: ServerConfig[] }
       servers = (data.list ?? []).filter(valid).map((c) => ({
@@ -148,17 +148,17 @@ export async function loadServer(): Promise<ServerConfig | null> {
       currentId = data.current
     } else {
       // Migrate the single-PC format of earlier versions.
-      const legacy = await KursorNative.secureGet({ key: LEGACY_SERVER_KEY })
+      const legacy = await PadLinkNative.secureGet({ key: LEGACY_SERVER_KEY })
       const cfg = legacy.value ? (JSON.parse(legacy.value) as ServerConfig) : null
       if (valid(cfg)) {
         const id = serverId(cfg)
         servers = [{ ...cfg, id }]
         currentId = id
-        const rt = await KursorNative.secureGet({ key: LEGACY_REFRESH_KEY })
-        if (rt.value) await KursorNative.secureSet({ key: `rt_${id}`, value: rt.value })
+        const rt = await PadLinkNative.secureGet({ key: LEGACY_REFRESH_KEY })
+        if (rt.value) await PadLinkNative.secureSet({ key: `rt_${id}`, value: rt.value })
         await persist()
-        await KursorNative.secureRemove({ key: LEGACY_SERVER_KEY })
-        await KursorNative.secureRemove({ key: LEGACY_REFRESH_KEY })
+        await PadLinkNative.secureRemove({ key: LEGACY_SERVER_KEY })
+        await PadLinkNative.secureRemove({ key: LEGACY_REFRESH_KEY })
       }
     }
   } catch {
@@ -193,7 +193,7 @@ export async function switchServer(id: string): Promise<boolean> {
 export async function removeServer(id: string): Promise<ServerConfig | null> {
   servers = servers.filter((c) => c.id !== id)
   try {
-    await KursorNative.secureRemove({ key: `rt_${id}` })
+    await PadLinkNative.secureRemove({ key: `rt_${id}` })
   } catch {
     /* ignore */
   }
@@ -237,7 +237,7 @@ export async function loadRefreshToken(): Promise<string | null> {
   const key = refreshKey()
   if (!isNative || !key) return null
   try {
-    const { value } = await KursorNative.secureGet({ key })
+    const { value } = await PadLinkNative.secureGet({ key })
     return value ?? null
   } catch {
     return null
@@ -248,8 +248,8 @@ export async function saveRefreshToken(token: string | null): Promise<void> {
   const key = refreshKey()
   if (!isNative || !key) return
   try {
-    if (token) await KursorNative.secureSet({ key, value: token })
-    else await KursorNative.secureRemove({ key })
+    if (token) await PadLinkNative.secureSet({ key, value: token })
+    else await PadLinkNative.secureRemove({ key })
   } catch {
     /* keystore unavailable: session will not survive a restart */
   }

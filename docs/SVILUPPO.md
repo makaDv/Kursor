@@ -26,7 +26,7 @@ Privacy, termini e licenze: [`docs/legal/`](legal/).
 PadLink/
 ├── server/
 │   ├── requirements.txt
-│   └── kursor/
+│   └── padlink/
 │       ├── __main__.py        # CLI: run, desktop, pair, devices, revoke, revoke-all, cert
 │       ├── desktop.py         # app Windows: tray, finestra QR/PIN, indicatore connessione, pausa, consenso
 │       ├── runtime.py         # bootstrap del server condiviso fra CLI e app desktop
@@ -49,7 +49,7 @@ PadLink/
 ├── client/
 │   ├── android/               # progetto Android Studio (Capacitor)
 │   ├── ios/                   # progetto Xcode (Capacitor, Swift Package Manager)
-│   ├── native/kursor-native/  # plugin nativo: HTTPS/WSS con pinning, Keystore/Keychain, scanner QR
+│   ├── native/padlink-native/  # plugin nativo: HTTPS/WSS con pinning, Keystore/Keychain, scanner QR
 │   ├── public/                # manifest, service worker, icone
 │   └── src/
 │       ├── lib/api.ts         # client HTTP con gestione dei token
@@ -86,17 +86,17 @@ PadLink/
 | Notifiche delle azioni | Blocco, sospensione, spegnimento, chiusura o terminazione di programmi e lettura degli appunti mostrano sul PC una notifica con il nome del telefono. |
 | Telefoni dimenticati | Revoca automatica dei dispositivi non usati da 30, 90 o 180 giorni (impostazione sul PC, default 90). |
 | Telefono rubato | Sblocco facoltativo dell'app con impronta o volto, che è richiesta di default anche per spegnere e terminare. |
-| Aggiornamenti | Controllo giornaliero facoltativo di una nuova versione, con manifest firmato **Ed25519** (`server/kursor/updates.py`): un sito compromesso non può annunciare aggiornamenti falsi. |
+| Aggiornamenti | Controllo giornaliero facoltativo di una nuova versione, con manifest firmato **Ed25519** (`server/padlink/updates.py`): un sito compromesso non può annunciare aggiornamenti falsi. |
 | Rete pubblica | Se Windows classifica la rete come «Pubblica», la finestra di PadLink mostra un avviso. |
 | Uso occulto | **Nessuna modalità nascosta.** L'icona nel tray è sempre visibile, diventa verde e mostra una notifica quando un telefono si connette. La finestra indica chi sta controllando il PC. **Pausa** (codice 4423) e revoca sono a un clic. Al primo avvio c'è una schermata di consenso, e l'avvio automatico è facoltativo. |
 | Esposizione su internet | Nessun port forwarding. Si passa da **Cloudflare Tunnel** (+ Cloudflare Access) oppure da **WireGuard/Tailscale**. In modalità tunnel il server ascolta solo su `127.0.0.1`. |
-| Revoca | `python -m kursor revoke <id>` oppure il pulsante nell'app. Le sessioni live si chiudono entro circa 2 secondi (codice 4409). Anche gli access token ancora validi smettono subito di funzionare. |
+| Revoca | `python -m padlink revoke <id>` oppure il pulsante nell'app. Le sessioni live si chiudono entro circa 2 secondi (codice 4409). Anche gli access token ancora validi smettono subito di funzionare. |
 | Azioni distruttive | Il pulsante va **tenuto premuto** per confermare. Il server richiede `confirm` uguale al nome dell'azione e accetta al massimo 1 azione ogni 5 s per dispositivo. |
 | Input malevolo | Validazione di ogni comando (tipi, limiti, whitelist dei tasti) e rate limit per connessione. I pulsanti premuti vengono rilasciati alla disconnessione. |
 | Audit | Log JSON-lines con rotazione in `~/.padlink/logs/access.log`: pairing, fallimenti, blocchi, refresh, riuso di token, revoche, connessioni WS e azioni di sistema. Il testo digitato non viene registrato. |
 | Header | CSP restrittiva, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, HSTS, COOP. Niente docs/OpenAPI esposti. |
 
-I dati sensibili (chiave di firma, dispositivi, CA, log) stanno in `~/.padlink` (oppure in `$KURSOR_DATA_DIR`), fuori dal repository.
+I dati sensibili (chiave di firma, dispositivi, CA, log) stanno in `~/.padlink` (oppure in `$PADLINK_DATA_DIR`), fuori dal repository.
 
 ---
 
@@ -108,7 +108,7 @@ Scarica `PadLink-Setup-x.y.z.exe` e installalo: non servono diritti di amministr
 3. premi **Associa un nuovo telefono** e inquadra il QR con l'app PadLink.
 
 Chiudendo la finestra PadLink resta nell'area di notifica (icona vicino all'orologio). Dal menu dell'icona: Apri, Associa, **Pausa controllo**, Esci.
-Da sorgente: `cd server; .venv\Scripts\python -m kursor desktop`. Build dell'installer: `packaging\windows\build.ps1` (vedi `docs/store/PUBLISHING.md` per la firma).
+Da sorgente: `cd server; .venv\Scripts\python -m padlink desktop`. Build dell'installer: `packaging\windows\build.ps1` (vedi `docs/store/PUBLISHING.md` per la firma).
 
 ## 1. Installazione
 
@@ -140,7 +140,7 @@ cd ../client && npm install && npm run build
 
 ```powershell
 cd server
-.venv\Scripts\python -m kursor run
+.venv\Scripts\python -m padlink run
 ```
 
 Al primo avvio PadLink:
@@ -156,8 +156,8 @@ Opzioni utili: `--port 8443`, `--no-pair` (non genera il PIN all'avvio), `--log-
 I certificati si generano da soli a `run`. Puoi anche gestirli a mano:
 
 ```powershell
-.venv\Scripts\python -m kursor cert           # crea o rinnova (il certificato server si rinnova se cambia l'IP)
-.venv\Scripts\python -m kursor cert --force   # rigenera anche la CA (poi va reinstallata sul telefono)
+.venv\Scripts\python -m padlink cert           # crea o rinnova (il certificato server si rinnova se cambia l'IP)
+.venv\Scripts\python -m padlink cert --force   # rigenera anche la CA (poi va reinstallata sul telefono)
 ```
 
 **Installa la CA sul telefono una sola volta.** Serve per una connessione fidata, senza avvisi, e per installare la PWA.
@@ -165,7 +165,7 @@ I certificati si generano da soli a `run`. Puoi anche gestirli a mano:
 1. Dal telefono, sulla stessa Wi-Fi, apri `https://<IP-del-PC>:8443/ca.crt`. Accetta l'avviso del browser solo per questo download.
 2. Prima di fidarti, confronta l'impronta SHA-256 mostrata dal telefono con quella stampata nel terminale.
 3. **iOS:** Impostazioni → *Profilo scaricato* → Installa. Poi Impostazioni → Generali → Info → **Impostazioni certificati attendibili** → attiva "PadLink Local CA".
-   **Android:** Impostazioni → Sicurezza → Crittografia e credenziali → Installa un certificato → **Certificato CA** → scegli `kursor-ca.crt`.
+   **Android:** Impostazioni → Sicurezza → Crittografia e credenziali → Installa un certificato → **Certificato CA** → scegli `padlink-ca.crt`.
    (Chrome per Android usa i certificati utente. Alcune versioni potrebbero comunque mostrare un avviso: in quel caso usa Tailscale o il tunnel.)
 
 ## 4. Collegare il telefono
@@ -177,16 +177,16 @@ I certificati si generano da soli a `run`. Puoi anche gestirli a mano:
 Il PIN scade dopo 5 minuti ed è monouso. Per associare un altro dispositivo, con il server avviato:
 
 ```powershell
-.venv\Scripts\python -m kursor pair
+.venv\Scripts\python -m padlink pair
 ```
 
 ## 5. Gestione dei dispositivi
 
 ```powershell
-.venv\Scripts\python -m kursor devices          # elenco
-.venv\Scripts\python -m kursor revoke 3fa2      # revoca per ID o prefisso univoco
-.venv\Scripts\python -m kursor revoke-all       # revoca tutto e ruota la chiave di firma
-.venv\Scripts\python -m kursor password         # imposta o cambia la password del PC (anche dalla finestra di PadLink)
+.venv\Scripts\python -m padlink devices          # elenco
+.venv\Scripts\python -m padlink revoke 3fa2      # revoca per ID o prefisso univoco
+.venv\Scripts\python -m padlink revoke-all       # revoca tutto e ruota la chiave di firma
+.venv\Scripts\python -m padlink password         # imposta o cambia la password del PC (anche dalla finestra di PadLink)
 ```
 
 Puoi vedere e revocare i dispositivi anche dall'app (scheda **Altro**).
@@ -221,7 +221,7 @@ cloudflared tunnel route dns padlink padlink.tuodominio.it
 ```
 Avvia PadLink **solo su loopback**: TLS lo termina Cloudflare e il traffico locale non lascia il PC.
 ```powershell
-.venv\Scripts\python -m kursor run --host 127.0.0.1 --port 8080 --no-tls `
+.venv\Scripts\python -m padlink run --host 127.0.0.1 --port 8080 --no-tls `
     --public-origin https://padlink.tuodominio.it --trust-proxy
 cloudflared tunnel run padlink
 ```
@@ -231,7 +231,7 @@ cloudflared tunnel run padlink
 
 ## 8. App Android e iOS (store)
 
-Le app native nascono dallo stesso codice React con [Capacitor](https://capacitorjs.com) 8.6. **Tutto il traffico verso il PC passa dal plugin nativo `client/native/kursor-native`**, non dalla WebView: così il certificato del PC viene verificato con il pinning e sul telefono non serve installare nulla.
+Le app native nascono dallo stesso codice React con [Capacitor](https://capacitorjs.com) 8.6. **Tutto il traffico verso il PC passa dal plugin nativo `client/native/padlink-native`**, non dalla WebView: così il certificato del PC viene verificato con il pinning e sul telefono non serve installare nulla.
 
 | | PWA | App Android | App iOS |
 |---|---|---|---|
@@ -251,7 +251,7 @@ npx cap open android             # Android Studio, poi ▶
 ```
 - APK di debug da riga di comando: `cd client\android; .\gradlew assembleDebug`.
 - APK release firmato (consigliato anche per uso personale: il debug è `debuggable`): crea `client\android\keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`; è in `.gitignore`), poi `.\gradlew assembleRelease` e `adb install -r app\build\outputs\apk\release\app-release.apk`.
-- Se sposti la cartella del progetto, riesegui `npm install` in `client`: il plugin `kursor-native` è un link locale e `npx cap sync` non lo trova più.
+- Se sposti la cartella del progetto, riesegui `npm install` in `client`: il plugin `padlink-native` è un link locale e `npx cap sync` non lo trova più.
 - iOS richiede macOS + Xcode (`npx cap open ios`) oppure la CI: `gh workflow run build.yml -f targets=ios` compila il progetto senza firma.
 - Icone e splash (PWA, Android, iOS, Windows): `server\.venv\Scripts\python scripts\make_icons.py`.
 
@@ -275,7 +275,7 @@ Dettagli, questionari e testi per gli store: [`docs/store/PUBLISHING.md`](store/
 
 ```powershell
 # terminale 1: backend che accetta l'origine del dev server
-cd server; .venv\Scripts\python -m kursor run --dev
+cd server; .venv\Scripts\python -m padlink run --dev
 # terminale 2: Vite con proxy verso https://localhost:8443
 cd client; npm run dev
 ```

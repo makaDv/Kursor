@@ -14,7 +14,7 @@ Checklist per Google Play, Apple App Store e la distribuzione del programma Wind
 | **Dati pubblici (un solo file)** | `release.json` | Nome dello sviluppatore, email di contatto/sicurezza/assistenza, URL di sito, download, Play, Microsoft Store, video demo, identità di Partner Center. Poi `server\.venv\Scripts\python scripts\apply_release_info.py`: li scrive in privacy, termini, `SECURITY.md`, app (`SUPPORT_EMAIL`) e sito. Usa un'email dedicata. |
 | **Controllo finale** | `scripts/release_check.py` | Prima di ogni upload: fallisce se resta un segnaposto, se le versioni non coincidono, se l'app Android è insicura (debug WebView, backup, HTTP in chiaro), se una chiave è tracciata da git o se `npm audit`/`pip-audit` trovano vulnerabilità. `build.ps1 -Release` lo esegue da solo. |
 | Sito pubblico e URL della privacy | Obbligatorio per entrambi gli store | `scripts/build_site.py` genera `site/dist/` (home, FAQ, privacy, termini) dai documenti in `docs/legal`. Pubblica **solo** quella cartella (GitHub Pages di un repository pubblico separato, Netlify, Cloudflare Pages). L'URL della privacy è `<sito>/privacy.html`. Il repository resta privato. |
-| Verifica del marchio "PadLink" | [TMview](https://www.tmdn.org/tmview/) (UE + nazionali), [USPTO](https://tmsearch.uspto.gov) | Il progetto si chiamava "Kursor", ma è stato rinominato perché suona identico a **Cursor**, marchio software registrato da Anysphere. Negli USA non risultano marchi PADLINK attivi (novembre 2026); **verifica in UE nelle classi 9 e 42 prima del lancio**. Valuta di registrarlo tu (EUIPO, circa 850 € per una classe). |
+| Verifica del marchio "PadLink" | [TMview](https://www.tmdn.org/tmview/) (UE + nazionali), [USPTO](https://tmsearch.uspto.gov) | Il progetto si chiamava "PadLink", ma è stato rinominato perché suona identico a **Cursor**, marchio software registrato da Anysphere. Negli USA non risultano marchi PADLINK attivi (novembre 2026); **verifica in UE nelle classi 9 e 42 prima del lancio**. Valuta di registrarlo tu (EUIPO, circa 850 € per una classe). |
 | Account sviluppatore | Google Play Console (25 $ una tantum), Apple Developer Program (99 $/anno) | Per Google Play da privato servono verifica dell'identità e 12 tester per 14 giorni prima della produzione. |
 | Licenze open source | `scripts/collect_licenses.py` | Va eseguito prima di ogni build di rilascio (lo fa già `build.ps1`): genera i testi completi mostrati nell'app e nel programma PC. |
 
@@ -37,7 +37,7 @@ equirements.lock`: entrambi devono dare 0 vulnerabilità. Poi rigenera le licenz
 
 ### Build firmata (AAB)
 1. **Chiave di upload**: `~/.padlink-release/padlink-upload.jks` (alias `upload`, password in `~/.padlink-release/README.txt`). **Fanne un backup fuori dal PC.** `client/android/keystore.properties` (escluso da git) la indica a Gradle. Per crearne una nuova: `keytool -genkeypair -keystore padlink-upload.jks -storetype PKCS12 -alias upload -keyalg RSA -keysize 4096 -validity 10000`.
-2. **Versione**: cambia solo `"version"` in `client/package.json` (e lo stesso numero in `server/kursor/__init__.py`, `packaging/windows/kursor.iss`, `version_info.txt`: `release_check.py` controlla che coincidano). `versionCode` si calcola da solo (1.1.0 → 10100).
+2. **Versione**: cambia solo `"version"` in `client/package.json` (e lo stesso numero in `server/padlink/__init__.py`, `packaging/windows/padlink.iss`, `version_info.txt`: `release_check.py` controlla che coincidano). `versionCode` si calcola da solo (1.1.0 → 10100).
 3. **Build**:
    ```powershell
    cd client; npm run build; npx cap sync android
@@ -230,7 +230,7 @@ Usa PadLink solo su computer tuoi o che sei autorizzato a gestire.
 
 Il programma Windows controlla una volta al giorno se c'è una nuova versione, ma solo dopo che l'hai configurato:
 1. `python scripts/release_keys.py keygen <cartella-fuori-dal-repo>` genera la coppia di chiavi. **Tieni la chiave privata offline.**
-2. Copia la chiave pubblica stampata in `UPDATE_PUBLIC_KEY` e l'URL del manifest in `UPDATE_URL` (`server/kursor/updates.py`).
+2. Copia la chiave pubblica stampata in `UPDATE_PUBLIC_KEY` e l'URL del manifest in `UPDATE_URL` (`server/padlink/updates.py`).
 3. A ogni rilascio pubblica `latest.json` (versione, URL dell'installer, sha256) e firmalo con `python scripts/release_keys.py sign <chiave> latest.json`, che crea `latest.json.sig`.
 4. Il programma mostra «È disponibile PadLink x.y» solo se la firma è valida: un sito compromesso non può spingere un falso aggiornamento.
 

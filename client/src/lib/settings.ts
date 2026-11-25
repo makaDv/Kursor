@@ -49,11 +49,12 @@ export const DEFAULT_PREFS: Prefs = {
   phrases: [],
 }
 
-const KEY = 'kursor.prefs.v1'
+const KEY = 'padlink.prefs.v1'
+const LEGACY_KEY = 'kursor.prefs.v1' // used before the rename
 
 function load(): Prefs {
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = localStorage.getItem(KEY) ?? localStorage.getItem(LEGACY_KEY)
     if (raw) return { ...DEFAULT_PREFS, ...JSON.parse(raw) }
   } catch {
     /* storage unavailable (private mode) */

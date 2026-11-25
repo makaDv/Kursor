@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, isPasswordError, lockSession, onAuthChange, onPasswordNeeded, refresh } from './lib/api'
 import { t, useLang } from './lib/i18n'
-import { KursorNative } from './lib/native'
+import { PadLinkNative } from './lib/native'
 import {
   canCaptureVolumeKeys,
   canWakeOnLan,
@@ -14,7 +14,7 @@ import {
 } from './lib/pc'
 import { getServer, isNative, listServers, loadServer, tailscaleOrigin, updateCurrentServer } from './lib/platform'
 import { usePrefs } from './lib/settings'
-import { KursorSocket, type SocketStatus } from './lib/socket'
+import { PadLinkSocket, type SocketStatus } from './lib/socket'
 import PairScreen from './components/PairScreen'
 import UnlockScreen from './components/UnlockScreen'
 import Trackpad from './components/Trackpad'
@@ -81,7 +81,7 @@ export default function App() {
     }
   }, [])
 
-  const control = useMemo(() => new KursorSocket({ path: '/ws/control', onStatus: setStatus, onMessage }), [onMessage])
+  const control = useMemo(() => new PadLinkSocket({ path: '/ws/control', onStatus: setStatus, onMessage }), [onMessage])
 
   // A QR pairing link (#pair=...) always wins over an existing session.
   const pairCode = useMemo(() => {
@@ -179,7 +179,7 @@ export default function App() {
       if (name && TABS.some((x) => x.id === name)) setTab(name as Tab)
     }
     void launchTab().then(go)
-    const h = KursorNative.addListener('launchTab', (ev) => go(ev.tab))
+    const h = PadLinkNative.addListener('launchTab', (ev) => go(ev.tab))
     return () => void h.then((x) => x.remove())
   }, [])
 
@@ -187,12 +187,12 @@ export default function App() {
   useEffect(() => {
     if (!canCaptureVolumeKeys) return
     const on = prefs.volumeKeys && boot === 'paired' && !locked
-    void KursorNative.setVolumeKeyCapture({ enabled: on }).catch(() => undefined)
+    void PadLinkNative.setVolumeKeyCapture({ enabled: on }).catch(() => undefined)
     if (!on) return
-    const h = KursorNative.addListener('volumeKey', (ev) => control.send({ t: 'keys', k: [ev.key === 'up' ? 'volume_up' : 'volume_down'] }))
+    const h = PadLinkNative.addListener('volumeKey', (ev) => control.send({ t: 'keys', k: [ev.key === 'up' ? 'volume_up' : 'volume_down'] }))
     return () => {
       void h.then((x) => x.remove())
-      void KursorNative.setVolumeKeyCapture({ enabled: false }).catch(() => undefined)
+      void PadLinkNative.setVolumeKeyCapture({ enabled: false }).catch(() => undefined)
     }
   }, [prefs.volumeKeys, boot, locked, control])
 
