@@ -39,7 +39,7 @@ Il codice sorgente di PadLink è distribuito con licenza [Apache 2.0](../../LICE
 
 ## 7. Modifiche e contatti
 
-Possiamo aggiornare questi termini. Le nuove versioni saranno pubblicate con l'app, e su quelle sostanziali verrà chiesto un nuovo consenso. Contatti: makaDv, [GitHub Issues](https://github.com/makaDv/Kursor/issues).
+Possiamo aggiornare questi termini. Le nuove versioni saranno pubblicate con l'app, e su quelle sostanziali verrà chiesto un nuovo consenso. Contatti: makaDv, [GitHub Issues](https://github.com/makaDv/PadLink/issues).
 
 ## 8. Legge applicabile
 

@@ -8,7 +8,7 @@ _Ultimo aggiornamento: 25 novembre 2026_
 
 ## Titolare
 
-makaDv (sviluppatore indipendente), contatto: [GitHub Issues](https://github.com/makaDv/Kursor/issues).
+makaDv (sviluppatore indipendente), contatto: [GitHub Issues](https://github.com/makaDv/PadLink/issues).
 
 ## Come funziona PadLink
 
@@ -55,7 +55,7 @@ Hai il pieno controllo dei dati, perché si trovano solo sui tuoi dispositivi:
 - **cancella i dati del telefono** disinstallando l'app, oppure con "Disconnetti";
 - **cancella i dati del PC** disinstallando PadLink ed eliminando la cartella `%USERPROFILE%\.padlink`.
 
-Visto che non trattiamo i tuoi dati, non abbiamo nulla da esportare o cancellare per conto tuo. Per qualsiasi domanda puoi comunque aprire una segnalazione su [GitHub Issues](https://github.com/makaDv/Kursor/issues). Puoi anche presentare reclamo all'autorità di controllo (in Italia, il Garante per la protezione dei dati personali).
+Visto che non trattiamo i tuoi dati, non abbiamo nulla da esportare o cancellare per conto tuo. Per qualsiasi domanda puoi comunque aprire una segnalazione su [GitHub Issues](https://github.com/makaDv/PadLink/issues). Puoi anche presentare reclamo all'autorità di controllo (in Italia, il Garante per la protezione dei dati personali).
 
 ## Sicurezza
 
@@ -103,4 +103,4 @@ The developer holds no copy of any of this data.
 
 **Children.** PadLink is not directed at children under 13.
 
-**Contact.** makaDv, [GitHub Issues](https://github.com/makaDv/Kursor/issues).
+**Contact.** makaDv, [GitHub Issues](https://github.com/makaDv/PadLink/issues).

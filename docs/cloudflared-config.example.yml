@@ -3,16 +3,16 @@
 #
 # PadLink must run in tunnel mode, bound to loopback only:
 #   python -m kursor run --host 127.0.0.1 --port 8080 --no-tls \
-#       --public-origin https://kursor.example.com --trust-proxy
+#       --public-origin https://padlink.example.com --trust-proxy
 
 tunnel: <TUNNEL-UUID>
 credentials-file: C:\Users\<you>\.cloudflared\<TUNNEL-UUID>.json
 
 ingress:
-  - hostname: kursor.example.com
+  - hostname: padlink.example.com
     service: http://127.0.0.1:8080
     originRequest:
       # Keep the public Host header so PadLink's Host allow-list matches.
-      httpHostHeader: kursor.example.com
+      httpHostHeader: padlink.example.com
       noTLSVerify: false
   - service: http_status:404

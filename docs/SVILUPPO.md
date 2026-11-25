@@ -215,17 +215,17 @@ Puoi vedere e revocare i dispositivi anche dall'app (scheda **Altro**).
 ```powershell
 winget install --id Cloudflare.cloudflared
 cloudflared tunnel login
-cloudflared tunnel create kursor
-cloudflared tunnel route dns kursor kursor.tuodominio.it
+cloudflared tunnel create padlink
+cloudflared tunnel route dns padlink padlink.tuodominio.it
 # configura docs/cloudflared-config.example.yml in %USERPROFILE%\.cloudflared\config.yml
 ```
 Avvia PadLink **solo su loopback**: TLS lo termina Cloudflare e il traffico locale non lascia il PC.
 ```powershell
 .venv\Scripts\python -m kursor run --host 127.0.0.1 --port 8080 --no-tls `
-    --public-origin https://kursor.tuodominio.it --trust-proxy
-cloudflared tunnel run kursor
+    --public-origin https://padlink.tuodominio.it --trust-proxy
+cloudflared tunnel run padlink
 ```
-**Fortemente consigliato:** nella dashboard Zero Trust crea un'applicazione **Cloudflare Access** per `kursor.tuodominio.it`, con policy *email = la tua* e OTP. Così, prima ancora di PadLink, c'è un secondo fattore.
+**Fortemente consigliato:** nella dashboard Zero Trust crea un'applicazione **Cloudflare Access** per `padlink.tuodominio.it`, con policy *email = la tua* e OTP. Così, prima ancora di PadLink, c'è un secondo fattore.
 
 `--no-tls` viene rifiutato se `--host` non è loopback, così non si espone per errore HTTP in chiaro sulla LAN.
 

@@ -21,12 +21,23 @@ def find():
         time.sleep(0.1)
     return None
 
+def until(pred, timeout=3.0):
+    """Polls find() until pred(window) holds: window animations and Tk's own first
+    show are asynchronous, so a fixed sleep made the suite flaky under load."""
+    end = time.monotonic() + timeout
+    while True:
+        f = find()
+        if (f and pred(f)) or time.monotonic() > end:
+            return bool(f and pred(f))
+        time.sleep(0.1)
+
 w = find(); check("test window listed", w is not None)
 hid = w["id"]
-windows.window_action(hid, "minimize"); time.sleep(0.4); check("minimize", find()["minimized"])
-windows.window_action(hid, "restore"); time.sleep(0.4); check("restore", not find()["minimized"])
-windows.window_action(hid, "maximize"); time.sleep(0.4); check("maximize", find()["maximized"])
-windows.window_action(hid, "restore"); time.sleep(0.4)
+time.sleep(0.5)  # let Tk finish mapping the window, or it can undo the first minimize
+windows.window_action(hid, "minimize"); check("minimize", until(lambda f: f["minimized"]))
+windows.window_action(hid, "restore"); check("restore", until(lambda f: not f["minimized"]))
+windows.window_action(hid, "maximize"); check("maximize", until(lambda f: f["maximized"]))
+windows.window_action(hid, "restore"); until(lambda f: not f["maximized"])
 windows.window_action(hid, "minimize"); time.sleep(0.3)
 windows.window_action(hid, "focus")
 for _ in range(20):  # up to 2 s: restore animation + foreground switch
@@ -45,8 +56,15 @@ if ex:
         windows.window_action(ex["id"], "kill"); check("explorer kill refused", False)
     except windows.WindowError as e:
         check("explorer kill refused", e.code == "protected")
-windows.window_action(hid, "close"); time.sleep(1.0)
-check("close (WM_CLOSE) ends test window", child.poll() is not None)
+def exited(proc, timeout=5.0):
+    try:
+        proc.wait(timeout)
+        return True
+    except subprocess.TimeoutExpired:
+        return False
+
+windows.window_action(hid, "close")
+check("close (WM_CLOSE) ends test window", exited(child))
 if child.poll() is None:
     child.kill()
 
@@ -56,6 +74,6 @@ child2 = subprocess.Popen([sys.executable, "-c",
 w2 = find()
 windows.window_action(w2["id"], "close"); time.sleep(0.6)
 check("app may refuse close (still running)", child2.poll() is None)
-windows.window_action(w2["id"], "kill"); time.sleep(0.8)
-check("kill terminates it", child2.poll() is not None)
+windows.window_action(w2["id"], "kill")
+check("kill terminates it", exited(child2))
 print("RESULT:", "FAILED " + str(fails) if fails else "ALL PASSED")

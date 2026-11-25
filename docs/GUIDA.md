@@ -26,7 +26,7 @@ PadLink trasforma il tuo smartphone in un **trackpad, una tastiera e un telecoma
 - PC e telefono collegati alla **stessa rete Wi-Fi** (di casa o dell'ufficio).
 
 ## 2. Scaricare i file
-Apri la pagina **[Releases](https://github.com/makaDv/Kursor/releases/latest)** e scarica dalla sezione *Assets*:
+Apri la pagina **[Releases](https://github.com/makaDv/PadLink/releases/latest)** e scarica dalla sezione *Assets*:
 - `PadLink-Setup-x.y.z.exe`: il programma per il PC;
 - `PadLink-x.y.z.apk`: l'app per Android (puoi scaricarla direttamente dal telefono).
 
@@ -44,7 +44,7 @@ Se chiudi la finestra, PadLink resta attivo nell'**area di notifica**, l'icona v
 > **Smart App Control.** Su alcuni PC con Windows 11 è attivo *Smart App Control*, che blocca i programmi senza firma digitale senza permettere eccezioni. Se l'installazione viene bloccata, vedi [Problemi frequenti](#9-problemi-frequenti).
 
 ## 4. Installare l'app sul telefono (Android)
-1. Sul telefono apri la pagina [Releases](https://github.com/makaDv/Kursor/releases/latest) e scarica `PadLink-x.y.z.apk`.
+1. Sul telefono apri la pagina [Releases](https://github.com/makaDv/PadLink/releases/latest) e scarica `PadLink-x.y.z.apk`.
 2. Apri il file scaricato. Android chiede di consentire l'installazione da **origini sconosciute** per il browser o il gestore file: attivala solo per questa installazione.
 3. Tocca **Installa**. Se compare un avviso di Play Protect, scegli **Installa comunque**: l'app non è sul Play Store, quindi Google non la conosce.
 4. Dopo l'installazione puoi disattivare di nuovo "origini sconosciute".
@@ -112,11 +112,11 @@ I programmi avviati come amministratore sono protetti da Windows. È una protezi
 Dipende dalle impostazioni di risparmio energetico di Windows (ibernazione attiva).
 
 ## 10. Aggiornare e disinstallare
-- **Aggiornare:** scarica la nuova versione da [Releases](https://github.com/makaDv/Kursor/releases/latest) e installala sopra la precedente, sia sul PC sia sul telefono. Telefoni associati e impostazioni restano.
+- **Aggiornare:** scarica la nuova versione da [Releases](https://github.com/makaDv/PadLink/releases/latest) e installala sopra la precedente, sia sul PC sia sul telefono. Telefoni associati e impostazioni restano.
 - **Disinstallare dal PC:** *Impostazioni > App > App installate > PadLink > Disinstalla*.
 - **Disinstallare dal telefono:** tieni premuta l'icona di PadLink e scegli *Disinstalla*.
 
 ## 11. Assistenza
-- Domande, problemi e idee: apri una segnalazione su **[GitHub Issues](https://github.com/makaDv/Kursor/issues)**. Puoi farlo anche dall'app: *Altro > Aiuto > Segnala un problema*.
-- Problemi di sicurezza: **non** pubblicarli. Segnalali in privato con [Report a vulnerability](https://github.com/makaDv/Kursor/security/advisories/new).
+- Domande, problemi e idee: apri una segnalazione su **[GitHub Issues](https://github.com/makaDv/PadLink/issues)**. Puoi farlo anche dall'app: *Altro > Aiuto > Segnala un problema*.
+- Problemi di sicurezza: **non** pubblicarli. Segnalali in privato con [Report a vulnerability](https://github.com/makaDv/PadLink/security/advisories/new).
 - [Privacy](legal/PRIVACY.md) · [Termini d'uso](legal/TERMS.md) · [Licenza Apache 2.0](../LICENSE)

@@ -3,7 +3,7 @@ import { t, useLang } from '../lib/i18n'
 import { APP_VERSION, Sheet } from './Legal'
 
 /** Public issue tracker used by the in-app "Segnala un problema" button (no email needed). */
-export const SUPPORT_URL = 'https://github.com/makaDv/Kursor/issues/new'
+export const SUPPORT_URL = 'https://github.com/makaDv/PadLink/issues/new'
 
 const FAQ: [string, string][] = [
   [
