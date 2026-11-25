@@ -24,7 +24,7 @@ jobs:
     if: inputs.targets == 'all' || inputs.targets == 'test'
     runs-on: windows-2025
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with: { python-version: "3.14" }
       - uses: actions/setup-node@v4
@@ -55,7 +55,7 @@ jobs:
     if: inputs.targets == 'all' || inputs.targets == 'android'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
       - uses: actions/setup-java@v4
@@ -91,7 +91,7 @@ jobs:
     if: inputs.targets == 'all' || inputs.targets == 'ios'
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
       - name: Web build + sync
@@ -112,7 +112,7 @@ jobs:
     if: inputs.targets == 'all' || inputs.targets == 'windows'
     runs-on: windows-2025
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
       - uses: actions/setup-python@v5
