@@ -4,6 +4,7 @@ import { KursorSocket, type Monitor, type SocketStatus } from '../lib/socket'
 import { getPrefs, haptic, usePrefs } from '../lib/settings'
 import Trackpad from './Trackpad'
 import { Icon } from './Icon'
+import { useSecureScreen } from '../lib/pc'
 
 // Must match server/kursor/control/screen.py HEADER ("<IffHHB3x", 20 bytes).
 const HEADER_SIZE = 20
@@ -13,6 +14,7 @@ type Mode = 'touch' | 'trackpad'
 
 export default function ScreenPanel({ control }: { control: KursorSocket }) {
   useLang()
+  useSecureScreen() // the PC screen must not end up in screenshots or the recents preview
   const [prefs, setPrefs] = usePrefs()
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState<SocketStatus>('idle')

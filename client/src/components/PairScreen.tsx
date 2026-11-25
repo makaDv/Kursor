@@ -14,6 +14,7 @@ import {
   type ServerConfig,
 } from '../lib/platform'
 import { PrivacyNote } from './Legal'
+import { useSecureScreen } from '../lib/pc'
 
 function defaultDeviceName() {
   const ua = navigator.userAgent
@@ -55,6 +56,7 @@ export default function PairScreen({
   onCancel?: () => void
 }) {
   useLang()
+  useSecureScreen()
   const [pin, setPin] = useState('')
   const [password, setPassword] = useState('')
   // QR / link scanned before the password was typed: paired when the form is submitted.

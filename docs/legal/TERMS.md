@@ -2,8 +2,6 @@
 
 _Ultimo aggiornamento: 14 novembre 2026_
 
-> **Prima di pubblicare:** sostituisci `[NOME / RAGIONE SOCIALE]` e `[EMAIL DI CONTATTO]`. Questi termini sono un modello: falli rivedere da un legale prima della pubblicazione commerciale.
-
 ## 1. Cos'è PadLink
 
 PadLink è un software per controllare a distanza, da uno smartphone, un computer su cui è installato il programma PadLink per PC (mouse, tastiera, visione dello schermo, blocco, sospensione e spegnimento).
@@ -37,11 +35,11 @@ PadLink è fornito **"così com'è"**, senza garanzie di alcun tipo, nei limiti 
 
 ## 6. Software di terze parti
 
-PadLink include componenti open source, ciascuno soggetto alla propria licenza (vedi `THIRD_PARTY_NOTICES.md`).
+Il codice sorgente di PadLink è distribuito con licenza [Apache 2.0](../../LICENSE). PadLink include componenti open source, ciascuno soggetto alla propria licenza (vedi `THIRD_PARTY_NOTICES.md`).
 
 ## 7. Modifiche e contatti
 
-Possiamo aggiornare questi termini. Le nuove versioni saranno pubblicate con l'app, e su quelle sostanziali verrà chiesto un nuovo consenso. Contatti: [NOME / RAGIONE SOCIALE], [EMAIL DI CONTATTO].
+Possiamo aggiornare questi termini. Le nuove versioni saranno pubblicate con l'app, e su quelle sostanziali verrà chiesto un nuovo consenso. Contatti: makaDv, [GitHub Issues](https://github.com/makaDv/Kursor/issues).
 
 ## 8. Legge applicabile
 

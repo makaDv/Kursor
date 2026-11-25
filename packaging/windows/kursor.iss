@@ -4,7 +4,7 @@
 ; Per-user install (no administrator rights): PadLink never runs elevated.
 ; On first launch Windows asks for permission through the firewall: allow PRIVATE networks only.
 
-#define AppVersion "1.0.0"
+#define AppVersion "1.1.0"
 
 [Setup]
 AppId={{7B6E3C2A-9D41-4E8B-A1F5-2C7D9E0B4F13}

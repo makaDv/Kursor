@@ -126,6 +126,24 @@ def primary_mac(ip: str | None = None) -> str | None:
     return ":".join(f"{(node >> s) & 0xFF:02X}" for s in range(40, -1, -8))
 
 
+def tailscale_network_public() -> bool:
+    """True if the Tailscale adapter is classified as a *Public* network (blocks the LAN-only firewall rule)."""
+    import subprocess
+    import sys
+
+    if sys.platform != "win32":
+        return False
+    try:
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+             "(Get-NetConnectionProfile | Where-Object InterfaceAlias -match 'Tailscale').NetworkCategory -join ','"],
+            capture_output=True, text=True, timeout=10,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return "Public" in out
+
+
 def public_network_profile() -> bool:
     """True if Windows classifies an active connection as a *Public* network."""
     import subprocess

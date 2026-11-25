@@ -11,11 +11,10 @@ Checklist per Google Play, Apple App Store e la distribuzione del programma Wind
 | Cosa | Dove | Note |
 |---|---|---|
 | Identificativo definitivo dell'app | `client/capacitor.config.ts` (`appId`), `client/android/app/build.gradle`, progetto Xcode | Oggi è `io.github.makadv.padlink`. **Non si può più cambiare dopo la prima pubblicazione.** Se hai un dominio, usa `tuodominio.padlink`. |
-| Nome e contatto | `docs/legal/PRIVACY.md`, `docs/legal/TERMS.md` | Sostituisci `[NOME / RAGIONE SOCIALE]` e `[EMAIL DI CONTATTO]`. Usa un'email dedicata. |
+| **Dati pubblici (un solo file)** | `release.json` | Nome dello sviluppatore, email di contatto/sicurezza/assistenza, URL di sito, download, Play, Microsoft Store, video demo, identità di Partner Center. Poi `server\.venv\Scripts\python scripts\apply_release_info.py`: li scrive in privacy, termini, `SECURITY.md`, app (`SUPPORT_EMAIL`) e sito. Usa un'email dedicata. |
+| **Controllo finale** | `scripts/release_check.py` | Prima di ogni upload: fallisce se resta un segnaposto, se le versioni non coincidono, se l'app Android è insicura (debug WebView, backup, HTTP in chiaro), se una chiave è tracciata da git o se `npm audit`/`pip-audit` trovano vulnerabilità. `build.ps1 -Release` lo esegue da solo. |
 | Sito pubblico e URL della privacy | Obbligatorio per entrambi gli store | `scripts/build_site.py` genera `site/dist/` (home, FAQ, privacy, termini) dai documenti in `docs/legal`. Pubblica **solo** quella cartella (GitHub Pages di un repository pubblico separato, Netlify, Cloudflare Pages). L'URL della privacy è `<sito>/privacy.html`. Il repository resta privato. |
-| Email di assistenza | `client/src/components/Help.tsx` (`SUPPORT_EMAIL`), `site/template.html` | Sostituisci `supporto@example.com`: è l'indirizzo del pulsante «Segnala un problema». |
 | Verifica del marchio "PadLink" | [TMview](https://www.tmdn.org/tmview/) (UE + nazionali), [USPTO](https://tmsearch.uspto.gov) | Il progetto si chiamava "Kursor", ma è stato rinominato perché suona identico a **Cursor**, marchio software registrato da Anysphere. Negli USA non risultano marchi PADLINK attivi (novembre 2026); **verifica in UE nelle classi 9 e 42 prima del lancio**. Valuta di registrarlo tu (EUIPO, circa 850 € per una classe). |
-| Contatto sicurezza | `SECURITY.md` | Sostituisci `[EMAIL DI SICUREZZA]` (può essere la stessa email di contatto). |
 | Account sviluppatore | Google Play Console (25 $ una tantum), Apple Developer Program (99 $/anno) | Per Google Play da privato servono verifica dell'identità e 12 tester per 14 giorni prima della produzione. |
 | Licenze open source | `scripts/collect_licenses.py` | Va eseguito prima di ogni build di rilascio (lo fa già `build.ps1`): genera i testi completi mostrati nell'app e nel programma PC. |
 
@@ -36,11 +35,19 @@ equirements.lock`: entrambi devono dare 0 vulnerabilità. Poi rigenera le licenz
 
 ## 1. Google Play (Android)
 
-### Build firmata
-1. Crea la chiave di upload. **Conservala fuori dal repository** e fanne un backup:
-   `keytool -genkeypair -v -keystore kursor-upload.jks -keyalg RSA -keysize 4096 -validity 10000 -alias upload`
-2. Android Studio › Build › Generate Signed App Bundle › `.aab`. Attiva **Play App Signing**: Google custodisce la chiave di firma, tu tieni solo quella di upload.
-3. Aumenta `versionCode` e `versionName` in `client/android/app/build.gradle` a ogni rilascio.
+### Build firmata (AAB)
+1. **Chiave di upload**: `~/.padlink-release/padlink-upload.jks` (alias `upload`, password in `~/.padlink-release/README.txt`). **Fanne un backup fuori dal PC.** `client/android/keystore.properties` (escluso da git) la indica a Gradle. Per crearne una nuova: `keytool -genkeypair -keystore padlink-upload.jks -storetype PKCS12 -alias upload -keyalg RSA -keysize 4096 -validity 10000`.
+2. **Versione**: cambia solo `"version"` in `client/package.json` (e lo stesso numero in `server/kursor/__init__.py`, `packaging/windows/kursor.iss`, `version_info.txt`: `release_check.py` controlla che coincidano). `versionCode` si calcola da solo (1.1.0 → 10100).
+3. **Build**:
+   ```powershell
+   cd client; npm run build; npx cap sync android
+   cd android; .\gradlew bundleRelease     # app\build\outputs\bundle\release\app-release.aab
+   ```
+   La release usa **R8** (codice minimizzato e offuscato, regole in `app/proguard-rules.pro`): prova sempre l'APK release (`.\gradlew assembleRelease`) su un telefono vero prima dell'upload.
+4. In Play Console attiva **Play App Signing** al primo upload: Google custodisce la chiave di firma dell'app, tu solo quella di upload. Se perdi la chiave di upload, Play Console permette di sostituirla.
+5. CI (facoltativo): secrets `ANDROID_UPLOAD_KEYSTORE` (il .jks in base64) e `ANDROID_UPLOAD_PASSWORD`. Poi `gh workflow run build.yml -f targets=android` produce l'AAB firmato.
+
+> L'APK installato a mano e la versione dal Play Store hanno firme diverse: per passare a quella dello store, disinstalla prima l'APK (poi associa di nuovo il telefono).
 
 ### Sicurezza dei dati (Data safety): risposte
 - **La tua app raccoglie o condivide uno dei tipi di dati utente richiesti?** → **No.**
@@ -51,6 +58,7 @@ equirements.lock`: entrambi devono dare 0 vulnerabilità. Poi rigenera le licenz
 - **Rete locale (mDNS, Wake-on-LAN):** il traffico resta sulla rete dell'utente, quindi non rientra nella raccolta di dati.
 
 ### Altre dichiarazioni
+- **Protezioni dello schermo:** le schermate di password/PIN e la visione dello schermo del PC usano `FLAG_SECURE` (niente screenshot o anteprima nelle app recenti), e la WebView ignora i tocchi quando un'altra app si sovrappone (anti-tapjacking). Non richiedono permessi.
 - **Permessi:** `CAMERA` serve solo allo scanner QR. Non ci sono permessi sensibili soggetti a dichiarazione: niente Accessibility, niente SMS, niente posizione. Wake-on-LAN e mDNS usano solo `INTERNET`, e la biometria non richiede permessi da dichiarare.
 - **Classificazione dei contenuti (IARC):** utility, nessun contenuto sensibile, quindi PEGI 3 / Everyone.
 - **Pubblico di destinazione:** 18+ (oppure 13+). Non selezionare fasce per bambini.
@@ -92,11 +100,21 @@ Aggiungi ai *secrets* del repository: `IOS_DIST_CERT_P12` (base64), `IOS_DIST_CE
 
 Gli utenti dello store devono poter scaricare il programma per il PC. Senza di lui l'app non fa nulla, e va scritto nella descrizione.
 
-### Firma del codice: obbligatoria nella pratica
+### Microsoft Store (consigliato): pacchetto MSIX
+1. Partner Center › nuova app "PadLink" › *Product identity*: copia **Package/Identity/Name**, **Publisher** (`CN=…`) e **Publisher display name** in `release.json` (`ms_store_identity_name`, `ms_store_publisher`, `ms_store_publisher_display_name`).
+2. `powershell -ExecutionPolicy Bypass -File packaging\windows\build.ps1 -Msix -Release` → `dist\PadLink-<ver>.msix` (serve il Windows SDK per `makeappx`). Carica quel file: **lo Store lo firma**, quindi niente certificato da comprare e niente blocchi di Smart App Control.
+3. Nel questionario dichiara la capability `runFullTrust`: "PadLink è un programma desktop Win32 (server locale per il controllo dal telefono, icona nell'area di notifica)".
+4. Cosa cambia nella versione Store (già gestito nel codice): la regola del firewall per la porta 8443 è nel manifest, **solo reti private**; l'avvio automatico è uno *StartupTask* che l'utente attiva da Impostazioni › App › Avvio; l'aggiornamento automatico interno è spento (aggiorna lo Store).
+5. Prova in locale: `build.ps1 -Msix -TestSign`, poi installa il certificato `CN=PadLink Test` in *Persone attendibili* (come amministratore) e `Add-AppxPackage dist\PadLink-<ver>.msix`.
+
+### Installer dal sito (alternativa)
+`build.ps1` produce anche `dist\PadLink-Setup-<ver>.exe` (Inno Setup). Pubblicalo su GitHub Releases e mettine l'URL in `release.json` (`windows_download_url`). Per gli aggiornamenti automatici firmati vedi la sezione 8.
+
+### Firma del codice dell'installer: obbligatoria nella pratica
 Windows 11 con **Smart App Control** attivo **blocca** gli eseguibili non firmati (verificato su questo PC: `PadLink.exe` non firmato viene bloccato). Hai due strade:
 
 1. **Microsoft Store (consigliato).** Lo store firma l'app: niente certificato da comprare e nessun avviso SmartScreen. Account sviluppatore individuale gratuito (2025+). Si pubblica come `.exe` o MSI (Win32) indicando l'URL dell'installer, oppure come MSIX.
-2. **Firma Authenticode tua.** Azure Trusted Signing (circa 10 $/mese, richiede verifica dell'identità) oppure un certificato OV/EV da una CA. Firma sia `PadLink.exe` sia `PadLink-Setup-*.exe` (comando in `packaging/windows/build.ps1`).
+2. **Firma Authenticode tua.** Azure Trusted Signing (circa 10 $/mese, richiede verifica dell'identità) oppure un certificato OV/EV da una CA. Imposta `PADLINK_SIGN_PFX` (percorso del .pfx) e `PADLINK_SIGN_PASSWORD`: `build.ps1` firma `PadLink.exe` e `PadLink-Setup-*.exe` da solo.
 
 ### Build
 `powershell -ExecutionPolicy Bypass -File packaging\windows\build.ps1` produce `dist\PadLink\` e, se Inno Setup 6 è installato, `dist\PadLink-Setup-1.0.0.exe`.
@@ -143,9 +161,11 @@ the local network through TLS with certificate pinning.
 
 How to test:
 1. On a Windows 10/11 PC on the same Wi-Fi, install and open PadLink.
-2. Press "Associa un nuovo telefono" (Pair a new phone): a QR code appears.
-3. In the app tap "Scansiona il QR code" and scan it.
-4. Use Trackpad / Tastiera (Keyboard) / Schermo (Screen) tabs.
+2. On first start choose a PC password (at least 8 characters, e.g.
+   "review-padlink-2026"): the app asks for it on every start.
+3. Press "Associa un telefono" (Pair a phone): a QR code appears.
+4. In the app type the PC password, tap "Scansiona il QR code" and scan it.
+5. Use Trackpad / Tastiera (Keyboard) / Schermo (Screen) tabs.
 
 Demo video: <URL VIDEO 1-2 MINUTI>
 
@@ -170,10 +190,11 @@ Trasforma il telefono in trackpad, tastiera e telecomando per il **tuo** PC Wind
 - Tastiera, scorciatoie e tasti multimediali
 - Visione dello schermo in tempo reale con controllo a tocco
 - Blocco, sospensione e spegnimento del PC, con conferma
+- Anche fuori casa, se vuoi, con Tailscale (gratuito, nessuna porta da aprire)
 
 **Sicurezza e privacy**
 - Nessun account, nessun server esterno, nessun dato raccolto
-- Associazione con QR code o PIN monouso
+- Associazione con QR code o PIN monouso, più una password scelta da te sul PC
 - Connessione cifrata con verifica del certificato del PC
 - Sul PC un indicatore mostra sempre quando il telefono è connesso; puoi mettere in pausa o revocare l'accesso in qualsiasi momento
 

@@ -1,8 +1,8 @@
 # Windows version resource for PadLink.exe (shown in Properties > Details).
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 0, 0, 0),
-    prodvers=(1, 0, 0, 0),
+    filevers=(1, 1, 0, 0),
+    prodvers=(1, 1, 0, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -15,12 +15,12 @@ VSVersionInfo(
       StringTable('041004B0', [
         StringStruct('CompanyName', 'PadLink'),
         StringStruct('FileDescription', 'PadLink - controllo del PC dallo smartphone'),
-        StringStruct('FileVersion', '1.0.0'),
+        StringStruct('FileVersion', '1.1.0'),
         StringStruct('InternalName', 'PadLink'),
         StringStruct('LegalCopyright', 'Copyright (c) 2026 PadLink'),
         StringStruct('OriginalFilename', 'PadLink.exe'),
         StringStruct('ProductName', 'PadLink'),
-        StringStruct('ProductVersion', '1.0.0')
+        StringStruct('ProductVersion', '1.1.0')
       ])
     ]),
     VarFileInfo([VarStruct('Translation', [0x0410, 1200])])

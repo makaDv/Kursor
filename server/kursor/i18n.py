@@ -54,6 +54,28 @@ EN: dict[str, str] = {
     "Le password non coincidono": "The passwords do not match",
     "Password cambiata: i telefoni connessi dovranno reinserirla.": "Password changed: connected phones must enter it again.",
     "La password deve avere almeno 8 caratteri": "The password must be at least 8 characters long",
+    "Password troppo comune o facile da indovinare: scegline un'altra": "This password is too common or easy to guess: choose another one",
+    "La password non deve contenere il nome del PC": "The password must not contain the PC name",
+    "Accesso fuori casa": "Access away from home",
+    "Nella versione del Microsoft Store l'avvio automatico si attiva da Impostazioni › App › Avvio › PadLink. Si apre ora.":
+        "In the Microsoft Store version, autostart is turned on in Settings › Apps › Startup › PadLink. Opening it now.",
+    "Controllo di Tailscale…": "Checking Tailscale…",
+    "Come attivarlo": "How to enable it",
+    "Come funziona": "How it works",
+    "Scarica Tailscale": "Get Tailscale",
+    "Consenti nel firewall": "Allow in firewall",
+    "Tailscale attivo ({ip}), ma Windows lo considera una rete pubblica: il firewall blocca i telefoni.":
+        "Tailscale is on ({ip}), but Windows treats it as a public network: the firewall blocks phones.",
+    "Attivo: i telefoni con Tailscale (stesso account) raggiungono questo PC anche fuori casa ({ip}).":
+        "On: phones with Tailscale (same account) reach this PC away from home too ({ip}).",
+    "Tailscale è attivo ({ip}) ma è partito dopo PadLink: esci da PadLink e riaprilo.":
+        "Tailscale is on ({ip}) but started after PadLink: quit PadLink and open it again.",
+    "Facoltativo. Per usare il telefono fuori casa installa Tailscale (gratis) su PC e telefono con lo stesso account, poi riavvia PadLink.":
+        "Optional. To use your phone away from home, install Tailscale (free) on PC and phone with the same account, then restart PadLink.",
+    "Script del firewall non trovato.": "Firewall script not found.",
+    "Regole del firewall aggiornate per Tailscale.": "Firewall rules updated for Tailscale.",
+    "Serve una password per usare PadLink: i telefoni la chiederanno a ogni apertura.":
+        "PadLink needs a password: phones will ask for it every time they open.",
     "Apri l'app PadLink": "Open the PadLink app",
     "Tocca «Scansiona il QR code»": "Tap “Scan the QR code”",
     "Inquadra questo codice": "Scan this code",

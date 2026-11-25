@@ -11,6 +11,7 @@ public class KursorNativePlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "KursorNative"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "secureGet", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setSecure", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "secureSet", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "secureRemove", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "request", returnType: CAPPluginReturnPromise),
@@ -104,6 +105,15 @@ public class KursorNativePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     // MARK: secure storage
+
+    /// Android-only (FLAG_SECURE). iOS offers no equivalent API: resolve without effect.
+
+    @objc func setSecure(_ call: CAPPluginCall) {
+
+        call.resolve()
+
+    }
+
 
     @objc func secureGet(_ call: CAPPluginCall) {
         guard let key = validKey(call) else { return }

@@ -2,6 +2,7 @@
  * Helpers around the paired PC: find it again after an IP change (mDNS), wake it up
  * (Wake-on-LAN), biometric checks, launcher shortcuts and the store-review prompt.
  */
+import { useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { KursorNative } from './native'
 import { getServer, isNative, updateCurrentServer } from './platform'
@@ -46,6 +47,23 @@ async function swapToAlternate(): Promise<boolean> {
   if (!cfg?.pin || !cfg.alt || cfg.alt === cfg.origin) return false
   await updateCurrentServer({ origin: cfg.alt, alt: cfg.origin })
   return true
+}
+
+// ---- FLAG_SECURE (Android) --------------------------------------------------------------
+let secureUsers = 0
+
+/**
+ * While mounted, Android blocks screenshots, screen recording and the "recent apps"
+ * preview (password/PIN screens, PC screen view). Reference-counted across components.
+ */
+export function useSecureScreen(active = true): void {
+  useEffect(() => {
+    if (!isNative || !active) return
+    if (secureUsers++ === 0) void KursorNative.setSecure({ enabled: true }).catch(() => undefined)
+    return () => {
+      if (--secureUsers === 0) void KursorNative.setSecure({ enabled: false }).catch(() => undefined)
+    }
+  }, [active])
 }
 
 let lastRediscover = 0

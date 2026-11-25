@@ -1,0 +1,98 @@
+# Publishes a GitHub Release with the Windows installer and the Android APK.
+#
+#   git tag v1.1.0 && git push origin v1.1.0      # or run it by hand from the Actions tab
+#
+# The tag must match the version in client/package.json (scripts/release_check.py checks it).
+# Android signing: add the repository secrets ANDROID_UPLOAD_KEYSTORE (base64 of the .jks)
+# and ANDROID_UPLOAD_PASSWORD (plus ANDROID_KEY_ALIAS if the alias is not "upload").
+# Use the same key for every release, or users cannot update. Without them the release ships the debug APK instead.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to publish, e.g. v1.1.0"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.tag || github.ref }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.14" }
+      - name: Build exe + installer
+        shell: pwsh
+        run: |
+          python -m venv server\.venv
+          ./packaging/windows/build.ps1
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: "dist/PadLink-Setup-*.exe" }
+
+  android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.tag || github.ref }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: client/package-lock.json }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - name: Web build + sync
+        working-directory: client
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+      - name: Signing key from secrets (optional)
+        working-directory: client/android
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'upload' }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+              "$RUNNER_TEMP/upload.jks" "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEYSTORE_PASSWORD" > keystore.properties
+          fi
+      - name: Gradle (signed release APK, or debug APK without a key)
+        working-directory: client/android
+        run: |
+          VERSION=$(node -p "require('../package.json').version")
+          mkdir -p "$RUNNER_TEMP/out"
+          if [ -f keystore.properties ]; then
+            ./gradlew --no-daemon assembleRelease
+            cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/out/PadLink-$VERSION.apk"
+          else
+            ./gradlew --no-daemon assembleDebug
+            cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/out/PadLink-$VERSION.apk"
+          fi
+          rm -f keystore.properties
+      - uses: actions/upload-artifact@v4
+        with: { name: android, path: "${{ runner.temp }}/out/*.apk" }
+
+  publish:
+    needs: [windows, android]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: assets, merge-multiple: true }
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          files: assets/*
+          body: |
+            **Come installare:** scarica `PadLink-Setup-*.exe` sul PC e `PadLink-*.apk` sul telefono Android.
+            Guida completa: https://github.com/makaDv/Kursor/blob/main/docs/GUIDA.md

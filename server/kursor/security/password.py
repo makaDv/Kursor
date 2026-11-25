@@ -36,11 +36,42 @@ class PasswordError(ValueError):
     pass
 
 
-def validate(password: str) -> None:
+_COMMON: frozenset[str] | None = None
+_SEQUENCES = ("0123456789", "abcdefghijklmnopqrstuvwxyz", "qwertyuiop", "asdfghjkl", "zxcvbnm", "1q2w3e4r5t6y")
+
+
+def _common() -> frozenset[str]:
+    global _COMMON
+    if _COMMON is None:
+        try:
+            text = (Path(__file__).with_name("common_passwords.txt")).read_text(encoding="utf-8")
+        except OSError:
+            text = ""
+        _COMMON = frozenset(w.strip().lower() for w in text.splitlines() if w.strip() and not w.startswith("#"))
+    return _COMMON
+
+
+def _is_trivial(pw: str) -> bool:
+    low = pw.lower()
+    if len(set(low)) <= 2:  # "aaaaaaaa", "abababab"
+        return True
+    for seq in _SEQUENCES:  # "12345678", "87654321", "qwertyui"
+        if low in seq or low in seq[::-1]:
+            return True
+    return False
+
+
+def validate(password: str, pc_name: str | None = None) -> None:
     if len(password) < MIN_LENGTH:
         raise PasswordError(f"La password deve avere almeno {MIN_LENGTH} caratteri")
     if len(password) > MAX_LENGTH:
         raise PasswordError(f"La password può avere al massimo {MAX_LENGTH} caratteri")
+    low = password.lower()
+    stripped = low.rstrip("0123456789!?.")
+    if low in _common() or stripped in _common() or _is_trivial(password):
+        raise PasswordError("Password troppo comune o facile da indovinare: scegline un'altra")
+    if pc_name and len(pc_name) >= 4 and pc_name.lower() in low:
+        raise PasswordError("La password non deve contenere il nome del PC")
 
 
 class PasswordStore:
@@ -69,8 +100,8 @@ class PasswordStore:
             return ""
         return hashlib.sha256(str(record["salt"]).encode("ascii")).hexdigest()[:16]
 
-    def set(self, password: str) -> None:
-        validate(password)
+    def set(self, password: str, pc_name: str | None = None) -> None:
+        validate(password, pc_name)
         salt = secrets.token_bytes(16)
         record = {"v": 1, "kdf": "scrypt", "n": _N, "r": _R, "p": _P,
                   "salt": _b64(salt), "hash": _b64(_hash(password, salt))}

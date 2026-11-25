@@ -355,6 +355,23 @@ public class KursorNativePlugin extends Plugin {
         androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
             | androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL;
 
+    /**
+     * FLAG_SECURE on/off: while on, Android blocks screenshots, screen recording and the
+     * preview in "recent apps". Used on the password/PIN screens and the PC screen view.
+     */
+    @PluginMethod
+    public void setSecure(PluginCall call) {
+        final boolean on = Boolean.TRUE.equals(call.getBoolean("enabled", false));
+        getActivity().runOnUiThread(() -> {
+            if (on) {
+                getActivity().getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
+            } else {
+                getActivity().getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
+            }
+            call.resolve();
+        });
+    }
+
     @PluginMethod
     public void biometricAvailable(PluginCall call) {
         int r = androidx.biometric.BiometricManager.from(getContext()).canAuthenticate(AUTHENTICATORS);

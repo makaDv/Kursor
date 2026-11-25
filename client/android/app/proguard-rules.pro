@@ -19,3 +19,30 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# ---- PadLink release rules (R8) -------------------------------------------------
+# Capacitor finds plugins and their @PluginMethod methods by reflection.
+-keep class com.getcapacitor.** { *; }
+-keep @com.getcapacitor.annotation.CapacitorPlugin class * { *; }
+-keepclassmembers class * {
+    @com.getcapacitor.PluginMethod public *;
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+
+# PadLink native bridge (pinned TLS, secure storage, QR scanner).
+-keep class io.github.makadv.kursor.nativebridge.** { *; }
+
+# ZXing scanner activity (started by class name from the plugin).
+-keep class com.journeyapps.barcodescanner.** { *; }
+-keep class com.google.zxing.** { *; }
+
+# OkHttp / Okio: optional platform integrations not present on Android.
+-dontwarn okhttp3.internal.platform.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**
+
+# Keep line numbers for readable crash reports in Play Console (file names hidden).
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

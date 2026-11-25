@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ApiError, refresh, setSessionPassword } from '../lib/api'
 import { t, useLang } from '../lib/i18n'
 import { getServer } from '../lib/platform'
+import { useSecureScreen } from '../lib/pc'
 
 function describe(err: unknown): string {
   if (!(err instanceof ApiError)) return t('Errore imprevisto')
@@ -22,6 +23,7 @@ function describe(err: unknown): string {
  */
 export default function UnlockScreen({ onUnlocked, onRepair }: { onUnlocked: () => void; onRepair: () => void }) {
   useLang()
+  useSecureScreen()
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)

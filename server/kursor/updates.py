@@ -51,6 +51,11 @@ def _parse_version(v: str) -> tuple[int, ...]:
 
 
 def enabled() -> bool:
+    from .winpkg import is_packaged
+
+    # Microsoft Store builds are updated by the Store only (its policy forbids self-updaters).
+    if is_packaged():
+        return False
     return bool(UPDATE_URL and UPDATE_PUBLIC_KEY and UPDATE_URL.startswith("https://"))
 
 

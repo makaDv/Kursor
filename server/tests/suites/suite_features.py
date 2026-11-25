@@ -145,6 +145,18 @@ st, body = call("POST", "/api/auth/refresh", {"refresh_token": D["refresh_token"
 check("new password accepted", st == 200, body)
 svc.password.set(PW); svc.guard.success("127.0.0.1")
 
+# ---- password strength rules
+from kursor.security.password import PasswordError, validate
+def _refused(pw, pc=None):
+    try:
+        validate(pw, pc); return False
+    except PasswordError:
+        return True
+check("common password refused", _refused("password1") and _refused("Napoli2024!"))
+check("trivial sequences refused", _refused("12345678") and _refused("aaaaaaaa") and _refused("qwertyui"))
+check("PC name inside password refused", _refused("myhost-secret", "myhost"))
+check("reasonable password accepted", not _refused("buona-sera-luna", "myhost"))
+
 # ---- QR image removed when the pairing ends
 png = DATA / "pairing-qr.png"
 png.write_bytes(b"x"); svc.pairing.new_session(); svc.pairing.close()

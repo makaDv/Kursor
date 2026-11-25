@@ -239,6 +239,7 @@ def cmd_password(args: argparse.Namespace) -> int:
 
     from .fsutil import ensure_private_dir
     from .logging_setup import audit, setup_logging
+    from .netutil import hostname
     from .security.password import PasswordError, PasswordStore, validate
 
     s = _settings_from_args(args)
@@ -249,14 +250,14 @@ def cmd_password(args: argparse.Namespace) -> int:
     print("L'app la chiederà a ogni apertura. Usa almeno 8 caratteri, diversa da quella di Windows.")
     first = getpass.getpass("Nuova password: ")
     try:
-        validate(first)
+        validate(first, hostname())
     except PasswordError as exc:
         print(f"ERRORE: {exc}", file=sys.stderr)
         return 2
     if getpass.getpass("Ripeti la password: ") != first:
         print("ERRORE: le password non coincidono.", file=sys.stderr)
         return 2
-    store.set(first)
+    store.set(first, hostname())
     audit("password_set", by="cli")
     print("Password salvata. I telefoni connessi dovranno reinserirla.")
     return 0

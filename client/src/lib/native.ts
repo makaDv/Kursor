@@ -54,6 +54,8 @@ export interface KursorNativePlugin {
 
   /** Android: hardware volume keys emit "volumeKey" instead of changing the phone volume. */
   setVolumeKeyCapture(o: { enabled: boolean }): Promise<void>
+  /** Android: block screenshots/recording/recents preview (FLAG_SECURE). No-op elsewhere. */
+  setSecure(o: { enabled: boolean }): Promise<void>
 
   /** Tab requested by a launcher shortcut / quick action, if the app was opened from one. */
   getLaunchTab(): Promise<{ tab: string | null }>

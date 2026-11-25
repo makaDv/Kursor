@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError, logout, type Device } from '../lib/api'
 import { t, useLang } from '../lib/i18n'
 import { biometricAvailable, canCaptureVolumeKeys } from '../lib/pc'
-import { isNative } from '../lib/platform'
+import { getServer, isNative, LAN_ONLY } from '../lib/platform'
 import { usePrefs } from '../lib/settings'
 import ConfirmDialog from './ConfirmDialog'
 import { Icon } from './Icon'
@@ -118,6 +118,8 @@ export default function MorePanel({
         </section>
       )}
 
+      {isNative && !LAN_ONLY && <AwayFromHome />}
+
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="section-title">{t('Dispositivi associati')}</h2>
@@ -223,5 +225,37 @@ function Choice(props: { label: string; value: string; options: [string, string]
         ))}
       </div>
     </div>
+  )
+}
+
+/** Optional access away from home through Tailscale (no PadLink server involved). */
+function AwayFromHome() {
+  const cfg = getServer()
+  const ts = cfg?.alt && /^https:\/\/100\./.test(cfg.alt) ? cfg.alt : cfg?.origin.startsWith('https://100.') ? cfg.origin : null
+  const host = ts?.replace(/^https:\/\//, '').replace(/:\d+$/, '')
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="section-title">{t('Fuori casa')}</h2>
+      <div className="grid gap-3 card p-4 text-sm">
+        {ts ? (
+          <p>{t('Pronto: fuori casa PadLink usa l’indirizzo Tailscale del PC ({ip}). Tieni Tailscale attivo sul telefono.', { ip: host ?? '' })}</p>
+        ) : (
+          <>
+            <p className="text-gray-400">
+              {t('Facoltativo. In casa PadLink funziona da solo. Per usarlo anche fuori casa, senza aprire porte sul router:')}
+            </p>
+            <ol className="list-decimal space-y-1 pl-5 text-gray-400">
+              <li>{t('installa Tailscale (gratis) sul PC e sul telefono, con lo stesso account;')}</li>
+              <li>{t('riavvia PadLink sul PC;')}</li>
+              <li>{t('apri l’app una volta in casa: imparerà da sola il nuovo indirizzo.')}</li>
+            </ol>
+            <a className="btn-secondary text-center" href="https://play.google.com/store/apps/details?id=com.tailscale.ipn" target="_blank" rel="noreferrer">
+              {t('Scarica Tailscale')}
+            </a>
+          </>
+        )}
+        <p className="text-xs text-gray-500">{t('La password del PC viene chiesta anche fuori casa. PadLink non passa mai da server nostri.')}</p>
+      </div>
+    </section>
   )
 }

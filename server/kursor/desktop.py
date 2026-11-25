@@ -162,7 +162,9 @@ def _autostart_command() -> str:
 
 
 def autostart_enabled() -> bool:
-    if sys.platform != "win32":
+    from .winpkg import is_packaged
+
+    if sys.platform != "win32" or is_packaged():  # Store build: StartupTask, managed in Windows Settings
         return False
     import winreg
 
@@ -281,7 +283,11 @@ class DesktopApp:
             self.root.after(2500, lambda: self._notify(
                 f"PadLink è attivo: {n} telefon{'o' if n == 1 else 'i'} associat{'o' if n == 1 else 'i'} "
                 "possono controllare questo PC. Apri l'icona per gestirli."))
-        elif not self.svc.store.list():
+        if not self.svc.password.is_set():
+            # First start (or an update from a version without passwords): choose it now.
+            then = None if start_minimized or self.svc.store.list() else self.new_pairing
+            self.root.after(300, lambda: (self.show(), self.set_password(then=then, mandatory=True)))
+        elif not start_minimized and not self.svc.store.list():
             self.new_pairing()  # first launch: nothing paired yet, show the QR right away
         self.root.after(200, self._tick)
         threading.Thread(target=self._background_checks, name="padlink-checks", daemon=True).start()
@@ -428,6 +434,15 @@ class DesktopApp:
         self.pw_btn.pack(side="right")
         self._render_password()
 
+        # Access away from home (optional Tailscale)
+        self._section("Accesso fuori casa")
+        remote = self._card(self.body)
+        self.remote_lbl = Label(remote, text="Controllo di Tailscale…", bg=CARD, fg=MUTED, font=(FONT, 9),
+                                justify="left", anchor="w", wraplength=380)
+        self.remote_lbl.pack(side="left", fill="x", expand=True, padx=14, pady=12)
+        self.remote_btn = _button(remote, "Come attivarlo", self._open_tailscale_help, "secondary")
+        self.remote_btn.pack(side="right", padx=14)
+
         # Footer
         foot = tk.Frame(self.body, bg=BG)
         foot.pack(fill="x", pady=(16, 0))
@@ -454,6 +469,55 @@ class DesktopApp:
         val.pack(side="left")
         return val
 
+    # -- access away from home (Tailscale) --
+    def _render_remote(self, ts_ip: str | None, ts_public: bool) -> None:
+        from .netutil import tailscale_ipv4
+
+        started_with = tailscale_ipv4(self.svc.lan_ips)
+        if ts_ip and ts_ip == started_with and ts_public:
+            text = _("Tailscale attivo ({ip}), ma Windows lo considera una rete pubblica: il firewall blocca i telefoni.").format(ip=ts_ip)
+            _restyle(self.remote_btn, "Consenti nel firewall", "warn")
+            self.remote_btn.configure(command=self._allow_tailscale_firewall)
+        elif ts_ip and ts_ip == started_with:
+            text = _("Attivo: i telefoni con Tailscale (stesso account) raggiungono questo PC anche fuori casa ({ip}).").format(ip=ts_ip)
+            _restyle(self.remote_btn, "Come funziona", "ghost")
+            self.remote_btn.configure(command=self._open_tailscale_help)
+        elif ts_ip:
+            text = _("Tailscale è attivo ({ip}) ma è partito dopo PadLink: esci da PadLink e riaprilo.").format(ip=ts_ip)
+            _restyle(self.remote_btn, "Come funziona", "secondary")
+            self.remote_btn.configure(command=self._open_tailscale_help)
+        else:
+            text = _("Facoltativo. Per usare il telefono fuori casa installa Tailscale (gratis) su PC e telefono con lo stesso account, poi riavvia PadLink.")
+            _restyle(self.remote_btn, "Scarica Tailscale", "secondary")
+            self.remote_btn.configure(command=self._open_tailscale_help)
+        self.remote_lbl.configure(text=text, fg=FG if ts_ip else MUTED)
+
+    def _open_tailscale_help(self) -> None:
+        import webbrowser
+
+        webbrowser.open("https://tailscale.com/download")
+
+    def _allow_tailscale_firewall(self) -> None:
+        """Runs the bundled firewall.ps1 elevated (UAC prompt): TCP 8443 only from 100.64.0.0/10."""
+        import subprocess
+
+        script = _bundle_dir() / "scripts" / "firewall.ps1"
+        if not script.exists():
+            script = Path(__file__).resolve().parents[2] / "scripts" / "firewall.ps1"
+        if not script.exists():
+            messagebox.showerror(APP_NAME, _("Script del firewall non trovato."))
+            return
+        # Single-quoted PowerShell string: a ' in the path (e.g. C:\Users\O'Neil) is doubled.
+        args = f"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -Port {int(self.settings.port)}".replace("'", "''")
+        try:
+            subprocess.run(["powershell", "-NoProfile", "-Command",
+                            f"Start-Process powershell -Verb RunAs -Wait -ArgumentList '{args}'"],
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), timeout=300)
+        except (OSError, subprocess.SubprocessError):
+            return
+        self.audit("firewall_tailscale_rule", by="desktop")
+        self._notify(_("Regole del firewall aggiornate per Tailscale."))
+
     # -- PC password --
     def _render_password(self) -> None:
         if self.svc.password.is_set():
@@ -463,7 +527,9 @@ class DesktopApp:
             self.pw_lbl.configure(text="Password del PC: non impostata (serve per associare i telefoni)", fg=AMBER)
             _restyle(self.pw_btn, "Imposta password", "primary")
 
-    def set_password(self, then: Callable[[], None] | None = None) -> None:
+    def set_password(self, then: Callable[[], None] | None = None, mandatory: bool = False) -> None:
+        """``mandatory``: first start, no password yet. The dialog cannot be dismissed:
+        without a password no phone can pair or connect."""
         from .security.password import MIN_LENGTH, PasswordError, validate
 
         changing = self.svc.password.is_set()
@@ -488,14 +554,14 @@ class DesktopApp:
         def save(_e: Any = None) -> None:
             first, second = entries[0].get(), entries[1].get()
             try:
-                validate(first)
+                validate(first, self.svc.pc_name)
             except PasswordError as exc:
                 err.configure(text=str(exc))
                 return
             if first != second:
                 err.configure(text="Le password non coincidono")
                 return
-            self.svc.password.set(first)
+            self.svc.password.set(first, self.svc.pc_name)
             for e in entries:
                 e.delete(0, "end")
             self.audit("password_set", by="desktop", changed=changing)
@@ -511,7 +577,11 @@ class DesktopApp:
         btns = tk.Frame(win, bg=BG)
         btns.pack(fill="x", padx=20, pady=16)
         _button(btns, "Salva", save, "primary").pack(side="right")
-        _button(btns, "Annulla", win.destroy, "secondary").pack(side="right", padx=8)
+        if mandatory:
+            win.protocol("WM_DELETE_WINDOW", lambda: err.configure(
+                text=_("Serve una password per usare PadLink: i telefoni la chiederanno a ogni apertura.")))
+        else:
+            _button(btns, "Annulla", win.destroy, "secondary").pack(side="right", padx=8)
         win.grab_set()
 
     # -- pairing --
@@ -766,12 +836,15 @@ class DesktopApp:
     def _background_checks(self) -> None:
         """Slow checks off the UI thread: network profile every 5 min, updates once a day."""
         from . import updates
-        from .netutil import public_network_profile
+        from .netutil import public_network_profile, tailscale_ipv4, tailscale_network_public
 
         last_update = 0.0
         while not self.quitting:
             public = public_network_profile()
             self.ui_queue.put(lambda public=public: setattr(self, "public_network", public))
+            ts_ip = tailscale_ipv4()
+            ts_public = bool(ts_ip) and tailscale_network_public()
+            self.ui_queue.put(lambda ip=ts_ip, pub=ts_public: self._render_remote(ip, pub))
             if updates.enabled() and time.time() - last_update > updates.CHECK_INTERVAL_S:
                 last_update = time.time()
                 info = updates.check()
@@ -812,6 +885,15 @@ class DesktopApp:
         self._refresh()
 
     def _toggle_autostart(self) -> None:
+        from .winpkg import is_packaged
+
+        if is_packaged():
+            # MSIX: autostart is the manifest StartupTask, switched on by the user in Settings.
+            self.autostart_var.set(False)
+            messagebox.showinfo(APP_NAME, _("Nella versione del Microsoft Store l'avvio automatico si attiva da "
+                                            "Impostazioni › App › Avvio › PadLink. Si apre ora."))
+            os.startfile("ms-settings:startupapps")  # type: ignore[attr-defined]
+            return
         try:
             set_autostart(self.autostart_var.get())
         except OSError as exc:
@@ -995,6 +1077,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--minimized", action="store_true", help="avvia nell'area di notifica")
     parser.add_argument("--data-dir", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+    from .winpkg import is_packaged, started_at_logon
+
+    if not args.minimized and is_packaged() and started_at_logon():
+        args.minimized = True  # launched by the MSIX StartupTask (no arguments possible)
 
     from .config import Settings
 

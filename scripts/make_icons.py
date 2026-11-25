@@ -38,7 +38,21 @@ def render(size: int, rounded: bool = True) -> Image.Image:
     return img.resize((size, size), Image.Resampling.LANCZOS)
 
 
+MSIX_ASSETS = Path(__file__).resolve().parents[1] / "packaging" / "windows" / "msix" / "Assets"
+
+
+def msix_icons() -> None:
+    """Microsoft Store (MSIX) logos referenced by packaging/windows/msix/AppxManifest.xml."""
+    MSIX_ASSETS.mkdir(parents=True, exist_ok=True)
+    render(50).save(MSIX_ASSETS / "StoreLogo.png")
+    render(44).save(MSIX_ASSETS / "Square44x44Logo.png")
+    render(150).save(MSIX_ASSETS / "Square150x150Logo.png")
+    # Unplated taskbar icon (no tile background behind it).
+    render(44).save(MSIX_ASSETS / "Square44x44Logo.targetsize-44_altform-unplated.png")
+
+
 def main() -> None:
+    msix_icons()
     OUT.mkdir(parents=True, exist_ok=True)
     render(192).save(OUT / "icon-192.png")
     render(512, rounded=False).save(OUT / "icon-512.png")  # maskable: full bleed

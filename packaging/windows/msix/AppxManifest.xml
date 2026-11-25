@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MSIX manifest for the Microsoft Store build of the PadLink PC program.
+  build.ps1 -Msix fills the {{...}} values (version, identity from release.json) and
+  packs dist\PadLink\ with makeappx. The Store re-signs the package: no certificate to buy.
+  Identity Name and Publisher must match Partner Center › Product identity exactly.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:desktop2="http://schemas.microsoft.com/appx/manifest/desktop/windows10/2"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap desktop desktop2 rescap">
+
+  <Identity Name="{{IDENTITY_NAME}}" Publisher="{{PUBLISHER}}" Version="{{VERSION}}.0" ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>PadLink</DisplayName>
+    <PublisherDisplayName>{{PUBLISHER_DISPLAY_NAME}}</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <Description>Control this PC from your phone: trackpad, keyboard and screen, paired with a QR code and protected by a password.</Description>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="it-IT" />
+    <Resource Language="en-US" />
+  </Resources>
+
+  <Applications>
+    <Application Id="PadLink" Executable="PadLink\PadLink.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="PadLink" Description="Control this PC from your phone"
+                          BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.png"
+                          Square44x44Logo="Assets\Square44x44Logo.png" />
+      <Extensions>
+        <!-- Optional autostart, off by default: the user enables it in Settings › Apps › Startup. -->
+        <desktop:Extension Category="windows.startupTask" Executable="PadLink\PadLink.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="PadLinkStartup" Enabled="false" DisplayName="PadLink" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Extensions>
+    <!-- Inbound TCP 8443 on PRIVATE networks only (no prompt, no exposure on public Wi-Fi).
+         Tailscale on a "Public" adapter: the PC window offers a UAC-elevated rule for 100.64.0.0/10. -->
+    <desktop2:Extension Category="windows.firewallRules">
+      <desktop2:FirewallRules Executable="PadLink\PadLink.exe">
+        <desktop2:Rule Direction="in" IPProtocol="TCP" LocalPortMin="8443" LocalPortMax="8443" Profile="private" />
+      </desktop2:FirewallRules>
+    </desktop2:Extension>
+  </Extensions>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <Capability Name="privateNetworkClientServer" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

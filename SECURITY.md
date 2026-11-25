@@ -4,7 +4,7 @@ PadLink controls a computer remotely, so we take security reports seriously.
 
 ## Reporting a vulnerability
 
-Write to **[EMAIL DI SICUREZZA]** with:
+Report it privately through GitHub: **[Report a vulnerability](https://github.com/makaDv/Kursor/security/advisories/new)** (Security tab of the repository). Please include:
 - a description of the issue and its impact;
 - the steps to reproduce it (versions of the PC program and of the app);
 - if possible, a proof of concept.

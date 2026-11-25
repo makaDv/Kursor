@@ -45,6 +45,18 @@ export const EN: Record<string, string> = {
   'Usa impronta, volto o PIN del telefono per continuare.': 'Use your fingerprint, face or phone PIN to continue.',
   'Sblocco non riuscito. Riprova.': 'Unlock failed. Try again.',
   Sblocca: 'Unlock',
+  // ---- away from home (Tailscale)
+  'Fuori casa': 'Away from home',
+  'Pronto: fuori casa PadLink usa l’indirizzo Tailscale del PC ({ip}). Tieni Tailscale attivo sul telefono.':
+    'Ready: away from home PadLink uses the PC’s Tailscale address ({ip}). Keep Tailscale on in your phone.',
+  'Facoltativo. In casa PadLink funziona da solo. Per usarlo anche fuori casa, senza aprire porte sul router:':
+    'Optional. At home PadLink just works. To use it away from home too, without opening router ports:',
+  'installa Tailscale (gratis) sul PC e sul telefono, con lo stesso account;': 'install Tailscale (free) on the PC and the phone, with the same account;',
+  'riavvia PadLink sul PC;': 'restart PadLink on the PC;',
+  'apri l’app una volta in casa: imparerà da sola il nuovo indirizzo.': 'open the app once at home: it learns the new address by itself.',
+  'Scarica Tailscale': 'Get Tailscale',
+  'La password del PC viene chiesta anche fuori casa. PadLink non passa mai da server nostri.':
+    'The PC password is asked away from home too. PadLink never goes through our servers.',
   // ---- PC password
   'Password del PC': 'PC password',
   'Inserisci la password impostata nella finestra di PadLink su «{pc}».': 'Enter the password set in the PadLink window on “{pc}”.',
@@ -162,8 +174,8 @@ export const EN: Record<string, string> = {
   'Nessuno oltre a te: telefono e PC parlano direttamente in modo cifrato, senza server esterni. Sul PC un’icona verde indica sempre quando un telefono è connesso.':
     'Nobody but you: phone and PC talk directly and encrypted, with no external servers. A green icon on the PC always shows when a phone is connected.',
   'Non hai trovato la risposta?': 'Didn’t find the answer?',
-  'Scrivici: rispondiamo a tutte le segnalazioni. Una mail si apre già compilata con la versione dell’app.':
-    'Write to us: we answer every report. An email opens pre-filled with the app version.',
+  'Apri una segnalazione su GitHub: la pagina si apre già compilata con la versione dell’app.':
+    'Open a report on GitHub: the page opens pre-filled with the app version.',
   'Segnala un problema': 'Report a problem',
   'Suggerisci un’idea': 'Suggest an idea',
 

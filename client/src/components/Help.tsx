@@ -2,11 +2,8 @@ import { Capacitor } from '@capacitor/core'
 import { t, useLang } from '../lib/i18n'
 import { APP_VERSION, Sheet } from './Legal'
 
-/**
- * Support address for the in-app "Segnala un problema" button.
- * TODO before publishing: replace with your real support email (same as in docs/legal).
- */
-export const SUPPORT_EMAIL = 'supporto@example.com'
+/** Public issue tracker used by the in-app "Segnala un problema" button (no email needed). */
+export const SUPPORT_URL = 'https://github.com/makaDv/Kursor/issues/new'
 
 const FAQ: [string, string][] = [
   [
@@ -40,7 +37,7 @@ function feedbackHref(kind: 'bug' | 'idea'): string {
   const body =
     `\n\n---\nPadLink ${APP_VERSION} · ${Capacitor.getPlatform()} · ${navigator.userAgent}\n` +
     '(Queste informazioni tecniche aiutano a capire il problema. Nessun altro dato viene inviato.)'
-  return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+  return `${SUPPORT_URL}?title=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 }
 
 export default function Help({ onClose }: { onClose: () => void }) {
@@ -54,12 +51,12 @@ export default function Help({ onClose }: { onClose: () => void }) {
         </details>
       ))}
       <h3>{t('Non hai trovato la risposta?')}</h3>
-      <p>{t('Scrivici: rispondiamo a tutte le segnalazioni. Una mail si apre già compilata con la versione dell’app.')}</p>
+      <p>{t('Apri una segnalazione su GitHub: la pagina si apre già compilata con la versione dell’app.')}</p>
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <a className="btn-secondary" href={feedbackHref('bug')}>
+        <a className="btn-secondary" href={feedbackHref('bug')} target="_blank" rel="noopener noreferrer">
           {t('Segnala un problema')}
         </a>
-        <a className="btn-secondary" href={feedbackHref('idea')}>
+        <a className="btn-secondary" href={feedbackHref('idea')} target="_blank" rel="noopener noreferrer">
           {t('Suggerisci un’idea')}
         </a>
       </div>

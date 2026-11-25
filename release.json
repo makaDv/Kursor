@@ -1,0 +1,15 @@
+{
+  "_comment": "Public release details. Fill every [..] value, then run: python scripts/apply_release_info.py && python scripts/release_check.py",
+  "developer_name": "makaDv",
+  "contact_email": "https://github.com/makaDv/Kursor/issues",
+  "security_email": "https://github.com/makaDv/Kursor/security/advisories/new",
+  "support_email": "https://github.com/makaDv/Kursor/issues",
+  "site_url": "https://github.com/makaDv/Kursor",
+  "windows_download_url": "https://github.com/makaDv/Kursor/releases/latest",
+  "ms_store_url": "",
+  "play_url": "",
+  "demo_video_url": "",
+  "ms_store_identity_name": "",
+  "ms_store_publisher": "",
+  "ms_store_publisher_display_name": ""
+}

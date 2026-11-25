@@ -14,6 +14,7 @@ datas = [
     (str(ROOT / "client" / "dist"), "client_dist"),
     (str(SERVER / "kursor" / "assets"), "kursor/assets"),
     (str(ROOT / "docs" / "legal"), "legal"),
+    (str(ROOT / "scripts" / "firewall.ps1"), "scripts"),
 ]
 
 hiddenimports = [
